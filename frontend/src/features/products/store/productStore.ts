@@ -29,7 +29,7 @@ interface ProductState {
   setStatus: (status: string) => void;
   setCategory: (category: string) => void;
   setType: (type: string) => void;
-  fetchProducts: () => Promise<void>;
+  fetchProducts: (force?: boolean) => Promise<void>;
   fetchCategories: () => Promise<void>;
 }
 
@@ -54,7 +54,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
   setCategory: (category) => set({ category, page: 1 }),
   setType: (type) => set({ type, page: 1 }),
 
-  fetchProducts: async () => {
+  fetchProducts: async (force: boolean = false) => {
     try {
       set({ loading: true, error: null });
       const { page, keyword, status, category, type } = get();
@@ -71,7 +71,8 @@ export const useProductStore = create<ProductState>((set, get) => ({
         per_page: 10,
         keyword: apiKeyword,
         status: apiStatus,
-        category: apiCategory as any // category_id كرقم صحيح لسلة
+        category: apiCategory as any, // category_id كرقم صحيح لسلة
+        force
       });
 
       // فلترة النوع فقط محلياً لأن السيرفر لا يدعمها مباشرة

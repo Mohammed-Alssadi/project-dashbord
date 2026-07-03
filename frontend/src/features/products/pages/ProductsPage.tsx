@@ -28,7 +28,7 @@ import {
   Filter,
   AlertTriangle
 } from "lucide-react"
-import { getSallaOAuthUrl } from "@/features/integration/salla/services/sallaIntegrationApi"
+import { getSallaOAuthUrl } from "@/features/auth/services/sallaAuthApi"
 
 /**
  * صفحة إدارة المنتجات المتقدمة والديناميكية (Enterprise Products Management)
@@ -75,16 +75,16 @@ export function ProductsPage() {
       {/* 1. الترويسة والتحكم */}
       <div className="flex items-center justify-between gap-4 pb-1 w-full">
         <div className="flex flex-col text-right">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <p className="text-2xl font-bold text-foreground flex items-center gap-2">
             إدارة المنتجات 📦
-          </h2>
-          <p className="text-muted-foreground text-[11px] mt-0.5">
+          </p>
+          <p className="text-muted-foreground text-md mt-0.5">
             مراقبة وعرض بيانات المنتجات المتصلة بمتجرك لحظياً.
           </p>
         </div>
         
         <Button 
-          onClick={refresh} 
+          onClick={() => refresh(true)} 
           disabled={loading}
           variant="outline"
           size="sm"

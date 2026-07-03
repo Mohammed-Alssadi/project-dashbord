@@ -1,5 +1,6 @@
 import { fetchSallaCategories } from '../services/salla/sallaClient.js';
 import { transformCategory } from '../services/categoryTransformer.js';
+import cache from '../utils/cache.js';
 
 /**
  * متحكم جلب التصنيفات الشامل والمفصل
@@ -11,7 +12,21 @@ export const getCategoriesList = async (req, res) => {
     const accessToken = req.shopToken;  // توكن المتجر
 
     // قراءة معاملات الاستعلام
-    const { page, per_page, keyword, status } = req.query;
+    const { page = 1, per_page = 10, keyword = '', status = '', force } = req.query;
+
+    const forceRefresh = force === 'true';
+    const cacheKey = `categories_${req.user.id}_${page}_${per_page}_${keyword}_${status}`;
+
+    if (!forceRefresh) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData) {
+        return res.status(200).json({
+          success: true,
+          source: 'cache',
+          ...cachedData
+        });
+      }
+    }
 
     let categories = [];
     let pagination = null;
@@ -47,10 +62,23 @@ export const getCategoriesList = async (req, res) => {
       total: Number(pagination.total) || 0
     } : null;
 
-    return res.json({
-      success: true,
+    const responseData = {
       data: normalizedCategories,
-      pagination: normalizedPagination
+      pagination: normalizedPagination || {
+        current_page: Number(page) || 1,
+        total_pages: 1,
+        per_page: Number(per_page) || 10,
+        total: normalizedCategories.length
+      }
+    };
+
+    // حفظ في الكاش لمدة 5 دقائق (300 ثانية - الافتراضي)
+    cache.set(cacheKey, responseData);
+
+    return res.status(200).json({
+      success: true,
+      source: 'api',
+      ...responseData
     });
   } catch (error) {
     console.error('Error in getCategoriesList controller:', error);

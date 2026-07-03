@@ -10,16 +10,16 @@ export function ZidConnectButton() {
       <Button
         onClick={connectZid}
         disabled={connecting}
-        className="w-full h-12 rounded-lg bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-between px-4 transition-colors duration-200 cursor-pointer border-0 font-sans"
+        className="w-full h-14 rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-between px-5 transition-all duration-300 cursor-pointer border-0 shadow-sm hover:shadow-purple-600/20 font-sans"
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           {connecting ? (
-            <Loader2 className="size-4.5 animate-spin shrink-0" />
+            <Loader2 className="size-6 animate-spin shrink-0" />
           ) : (
-            <ShoppingBag className="size-4.5 shrink-0" />
+            <ShoppingBag className="size-6 shrink-0" />
           )}
           <div className="flex flex-col items-start leading-none">
-            <span className="font-bold text-sm">
+            <span className="font-bold text-base tracking-wide">
               {connecting ? "جاري الاتصال..." : "ربط متجر زد"}
             </span>
           </div>

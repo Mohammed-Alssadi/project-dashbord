@@ -1,5 +1,6 @@
 import { fetchSallaProducts } from '../services/salla/sallaClient.js';
 import { transformProduct } from '../services/productTransformer.js';
+import cache from '../utils/cache.js';
 
 /**
  * متحكم جلب المنتجات الموحد والديناميكي
@@ -11,7 +12,21 @@ export const getProducts = async (req, res) => {
     const accessToken = req.shopToken;  // توكن المتجر
 
     // قراءة معاملات الاستعلام (Query Parameters)
-    const { page, per_page, keyword, status, category } = req.query;
+    const { page = 1, per_page = 10, keyword = '', status = '', category = '', force } = req.query;
+
+    const forceRefresh = force === 'true';
+    const cacheKey = `products_${req.user.id}_${page}_${per_page}_${keyword}_${status}_${category}`;
+
+    if (!forceRefresh) {
+      const cachedData = cache.get(cacheKey);
+      if (cachedData) {
+        return res.status(200).json({
+          success: true,
+          source: 'cache',
+          ...cachedData
+        });
+      }
+    }
 
     let products = [];
     let pagination = null;
@@ -81,10 +96,23 @@ export const getProducts = async (req, res) => {
       total: Number(pagination.total) || 0
     } : null;
 
-    return res.json({
-      success: true,
+    const responseData = {
       data: normalizedProducts,
-      pagination: normalizedPagination
+      pagination: normalizedPagination || {
+        currentPage: Number(page) || 1,
+        totalPages: 1,
+        perPage: Number(per_page) || 10,
+        total: normalizedProducts.length
+      }
+    };
+
+    // حفظ في الكاش لمدة 5 دقائق (300 ثانية - افتراضي)
+    cache.set(cacheKey, responseData);
+
+    return res.status(200).json({
+      success: true,
+      source: 'api',
+      ...responseData
     });
   } catch (error) {
     console.error('Error in getProducts controller:', error);

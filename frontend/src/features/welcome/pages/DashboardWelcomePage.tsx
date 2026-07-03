@@ -10,26 +10,44 @@ export function DashboardWelcomePage() {
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in font-sans" dir="rtl">
 
-      {/* Store Header Identity */}
-      <div className="flex items-center gap-4 bg-card border border-border/60 rounded-2xl p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[40px] pointer-events-none" />
+      {/* Premium Welcome Header */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-primary/10 via-primary/5 to-background border border-primary/10 p-8 md:p-10 shadow-sm">
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px] pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex flex-col gap-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/80 border border-border/50 shadow-sm w-fit backdrop-blur-md mb-2">
+              <span className="flex h-2.5 w-2.5 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">متصل ومستعد للعمل</span>
+            </div>
+            
+            <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground flex flex-wrap items-center gap-3">
+              مرحباً بك، <span className="text-primary">{user.name?.split(' ')[0] || 'مدير المتجر'}</span>
+              <span className="inline-block animate-bounce origin-bottom-right duration-1000">👋</span>
+            </h1>
+            
+            <p className="text-muted-foreground text-sm md:text-base max-w-xl leading-relaxed mt-1 font-medium">
+              إليك نظرة شاملة على أداء متجرك <span className="font-bold text-foreground mx-1">{user.storeName || 'الجديد'}</span> اليوم. نتمنى لك يوماً مليئاً بالطلبات والنجاح! 🚀
+            </p>
+          </div>
 
-        <img
-          src={user.avatarUrl || "/logo.png"}
-          alt="Store Avatar"
-          className="size-16 md:size-20 rounded-xl border border-border/80 object-cover shadow-sm bg-background"
-        />
-        <div className="flex flex-col">
-          <h1 className="text-2xl md:text-3xl font-black text-foreground">
-            {user.storeName || user.name || "متجر جديد"}
-          </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-md border border-primary/20">
-              {user.platform === 'salla' ? 'متجر سلة' : user.platform === 'zid' ? 'متجر زد' : user.platform}
-            </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              معرف المتجر: {user.platformStoreId}
-            </span>
+          {/* Quick Stats or Decorative Profile */}
+          <div className="hidden lg:flex items-center gap-4 bg-background/60 backdrop-blur-md p-3 rounded-3xl border border-white/10 shadow-sm">
+             <div className="flex items-center gap-4 bg-card rounded-2xl p-2 pr-4 border border-border/50 shadow-sm">
+               <div className="flex flex-col text-right">
+                  <span className="text-[10px] text-muted-foreground font-bold">معرف المتجر</span>
+                  <span className="text-xs font-black">{user.platformStoreId || '---'}</span>
+               </div>
+               <img
+                  src={user.avatarUrl || "/logo.png"}
+                  alt="Store Avatar"
+                  className="size-14 rounded-xl border border-border/80 object-cover shadow-sm bg-background"
+                />
+             </div>
           </div>
         </div>
       </div>

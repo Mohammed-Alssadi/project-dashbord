@@ -26,7 +26,7 @@ import {
   Filter,
   AlertTriangle
 } from "lucide-react"
-import { getSallaOAuthUrl } from "@/features/integration/salla/services/sallaIntegrationApi"
+import { getSallaOAuthUrl } from "@/features/auth/services/sallaAuthApi"
 
 /**
  * صفحة إدارة أقسام وتصنيفات المتجر (Categories Management)
@@ -61,7 +61,7 @@ export function CategoriesPage() {
         </div>
         
         <Button 
-          onClick={refresh} 
+          onClick={() => refresh(true)} 
           disabled={loading}
           variant="outline"
           size="sm"

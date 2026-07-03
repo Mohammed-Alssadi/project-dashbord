@@ -28,7 +28,10 @@ export const protect = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    // Only log server errors, ignore standard JWT malformed/expired errors to keep console clean
+    if (error.name !== 'JsonWebTokenError' && error.name !== 'TokenExpiredError') {
+      console.error('Auth middleware error:', error);
+    }
     return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
   }
 };

@@ -35,6 +35,7 @@ export interface CategoriesFilterParams {
   per_page?: number;
   keyword?: string;
   status?: string;
+  force?: boolean;
 }
 
 export interface CategoriesApiResponse {

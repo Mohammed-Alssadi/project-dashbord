@@ -12,6 +12,7 @@ import sallaAuthRoutes from './src/routes/sallaAuth.js';
 import zidAuthRoutes from './src/routes/zidAuth.js';
 import productRoutes from './src/routes/productRoutes.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
+import integrationRoutes from './src/routes/integrationRoutes.js';
 
 // تهيئة الاتصال بقاعدة البيانات
 import './src/config/db.js';
@@ -37,6 +38,7 @@ app.use('/auth/salla', sallaAuthRoutes);
 app.use('/auth/zid', zidAuthRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/integration', integrationRoutes);
 
 // فحص جاهزية الخادم (Health Check)
 app.get('/health', (req, res) => {

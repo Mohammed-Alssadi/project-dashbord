@@ -1,5 +1,5 @@
-import { SallaConnectButton } from "@/features/integration/salla/components/SallaConnectButton"
-import { ZidConnectButton } from "@/features/integration/zid/components/ZidConnectButton"
+import { SallaConnectButton } from "@/features/auth/components/SallaConnectButton"
+import { ZidConnectButton } from "@/features/auth/components/ZidConnectButton"
 import { Layers } from "lucide-react"
 
 export function LoginForm() {
@@ -14,23 +14,19 @@ export function LoginForm() {
             DashAI
           </span>
         </div>
-        <div className="text-2xl font-black text-foreground tracking-tight m-0">
+        <div className="text-3xl font-black text-foreground tracking-tight m-0">
           مرحباً بك في المنصة
         </div>
-        <p className="text-muted-foreground text-xs font-medium">
+        <p className="text-muted-foreground text-sm font-medium mt-1">
           اختر منصتك لتسجيل الدخول بضغطة زر واحدة
         </p>
       </div>
 
-      <div className="space-y-4 px-2 relative z-10 mb-6">
+      <div className="space-y-5 px-2 relative z-10 mb-6 mt-4">
         <div className="flex flex-col gap-4">
           <SallaConnectButton />
           <ZidConnectButton />
         </div>
-        
-        <p className="text-[10px] sm:text-xs text-center text-muted-foreground font-medium pt-4">
-          سيتم إنشاء حسابك تلقائياً في حال لم تكن مسجلاً مسبقاً.
-        </p>
       </div>
     </div>
   )

@@ -16,6 +16,9 @@ const ProductsPage = lazy(() =>
 const CategoriesPage = lazy(() =>
   import("@/features/categories/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage }))
 )
+const StoreSettingsPage = lazy(() =>
+  import("@/features/settings").then((module) => ({ default: module.StoreSettingsPage }))
+)
 const DashboardLayout = lazy(() =>
   import("@/layouts/DashboardLayout").then((module) => ({ default: module.DashboardLayout }))
 )
@@ -71,6 +74,14 @@ const router = createBrowserRouter([
             element: (
               <Suspense fallback={<PageLoader />}>
                 <CategoriesPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "/dashboard/settings",
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <StoreSettingsPage />
               </Suspense>
             ),
           },
