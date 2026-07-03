@@ -1,15 +1,8 @@
 import { LoginForm } from "../components/LoginForm"
-import { useNavigate } from "react-router-dom"
 import { Layers } from "lucide-react"
 import { Link } from "react-router-dom"
 
 export function LoginPage() {
-  const navigate = useNavigate()
-
-  const handleLogin = async () => {
-    navigate("/dashboard")
-  }
-
   return (
     <div className="h-screen w-full flex flex-col md:flex-row-reverse bg-background font-sans selection:bg-accent selection:text-accent-foreground overflow-hidden">
       {/* Branding / Image Side */}
@@ -19,30 +12,29 @@ export function LoginPage() {
         <div className="absolute top-[-10%] right-[10%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full bg-white/10 blur-[80px] md:blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[10%] left-[5%] w-[250px] md:w-[450px] h-[250px] md:h-[450px] rounded-full bg-indigo-500/20 blur-[80px] md:blur-[120px] pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center text-center max-w-lg">
+          <div className="relative z-10 flex flex-col items-center text-center max-w-lg">
           <div className="size-24 rounded-3xl bg-white/10 backdrop-blur-md flex items-center justify-center shadow-2xl shadow-black/10 mb-10 border border-white/20">
             <Layers className="size-12 text-white" />
           </div>
           <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight tracking-tight text-white">
-            جداول مقاسات ذكية
+            لوحة تحكم متجرك الذكية
           </h2>
           <p className="text-lg md:text-xl text-white/80 font-medium mb-12 max-w-md leading-relaxed">
-            قلل المرتجعات وزد رضا عملائك مع جداول مقاسات احترافية متكاملة مع سلة وزد.
+            اندمج مباشرة مع سلة أو زد، وأدِر مبيعاتك وطلباتك بكل سهولة مع أدوات مدعومة بالذكاء الاصطناعي.
           </p>
 
-          {/* Stats or trust badges (Optional based on the reference image) */}
           <div className="flex items-center justify-center gap-8 md:gap-12 w-full mt-8 pt-8 border-t border-white/10">
             <div className="text-center">
-              <p className="text-3xl font-black text-white">+10K</p>
-              <p className="text-sm text-white/70 font-medium mt-1">جدول مقاسات</p>
+              <p className="text-3xl font-black text-white">+100</p>
+              <p className="text-sm text-white/70 font-medium mt-1">أداة ذكية</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-black text-white">40%</p>
-              <p className="text-sm text-white/70 font-medium mt-1">تقليل المرتجعات</p>
+              <p className="text-3xl font-black text-white">100%</p>
+              <p className="text-sm text-white/70 font-medium mt-1">تحكم معزول وآمن</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-black text-white">+500</p>
-              <p className="text-sm text-white/70 font-medium mt-1">متجر نشط</p>
+              <p className="text-3xl font-black text-white">0</p>
+              <p className="text-sm text-white/70 font-medium mt-1">تعقيد تقني</p>
             </div>
           </div>
         </div>
@@ -65,7 +57,7 @@ export function LoginPage() {
         {/* Content Wrapper to center the form but allow footer at the bottom */}
         <div className="flex flex-col min-h-full p-4 md:p-8">
           <div className="flex-1 flex justify-center items-center z-10 mt-16 md:mt-0 py-8">
-            <LoginForm onSubmit={handleLogin} loading={false} error={null} />
+            <LoginForm />
           </div>
 
           {/* Footer Links */}

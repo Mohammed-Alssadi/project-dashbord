@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleZidRedirect, handleZidCallback } from '../controllers/zidAuthController.js';
+import { handleZidRedirect, handleZidCallback } from '../controllers/zid/zidAuthController.js';
 
 const router = express.Router();
 
@@ -7,6 +7,6 @@ const router = express.Router();
 router.get('/redirect', handleZidRedirect);
 
 // Route: /auth/zid/callback
-router.get('/callback', handleZidCallback);
+router.all('/callback', handleZidCallback);
 
 export default router;

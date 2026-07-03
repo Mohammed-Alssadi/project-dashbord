@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react"
-import { Link, useSearchParams, Outlet, useNavigate } from "react-router-dom"
+import { Link, Outlet, useNavigate, useOutletContext } from "react-router-dom"
 import { toast } from "sonner"
-import { useLinkedStores } from "@/features/linked-stores/hooks/useLinkedStores"
+import { authService, type AuthUser } from "@/features/auth/services/authService"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -10,8 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   SidebarProvider,
   Sidebar,
@@ -27,37 +24,31 @@ import {
   SidebarGroupContent,
 } from "@/components/ui/sidebar"
 import {
-  Store,
   LogOut,
   Home,
-  Link2,
-  Plus,
-  ArrowRight,
   MoreVertical,
   CircleUser,
   CreditCard,
   Bell,
+  Package,
+  Folder
 } from "lucide-react"
 
 export function DashboardLayout() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const storeId = searchParams.get("store_id") ?? undefined
-
-  const user = {
-    email: "admin@dashai.com",
-    user_metadata: {
-      full_name: "Admin User",
-      avatar_url: ""
-    }
-  }
-  const { stores: storesList, loading: listLoading } = useLinkedStores()
+  // الحصول على بيانات المستخدم المعرفة مسبقاً في ProtectedRoute بدون جلب إضافي (تجنب الـ re-rendering المتكرر)
+  const { user } = useOutletContext<{ user: AuthUser }>()
 
   const handleLogout = async () => {
-    navigate("/login")
+    try {
+      await authService.logout()
+      navigate("/login")
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || ""
+  const userName = user?.name || user?.email?.split("@")[0] || ""
 
   return (
     <SidebarProvider>
@@ -83,7 +74,7 @@ export function DashboardLayout() {
                   DashAI
                 </span>
                 <span className="text-[11px] text-primary font-semibold mt-1.5 bg-primary/5 px-3 py-1 rounded-md border border-primary/10">
-                  لوحة تحكم ذكية
+                  {user?.platform === 'salla' ? 'متجر سلة' : user?.platform === 'zid' ? 'متجر زد' : 'لوحة تحكم ذكية'}
                 </span>
               </div>
 
@@ -102,56 +93,27 @@ export function DashboardLayout() {
                     <SidebarMenuButton asChild isActive={window.location.pathname === "/dashboard"}>
                       <Link to="/dashboard" className="flex items-center gap-3 w-full">
                         <Home className="h-4 w-4 shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden">لوحة التحكم</span>
+                        <span className="group-data-[collapsible=icon]:hidden">الرئيسية</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={window.location.pathname === "/dashboard/stores"}>
-                      <Link to="/dashboard/stores" className="flex items-center gap-3 w-full">
-                        <Store className="h-4 w-4 shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden">المتاجر المرتبطة</span>
+                    <SidebarMenuButton asChild isActive={window.location.pathname === "/dashboard/products"}>
+                      <Link to="/dashboard/products" className="flex items-center gap-3 w-full">
+                        <Package className="h-4 w-4 shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden">المنتجات</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={window.location.pathname === "/connect"}>
-                      <Link to="/connect" className="flex items-center gap-3 w-full">
-                        <Link2 className="h-4 w-4 shrink-0" />
-                        <span className="group-data-[collapsible=icon]:hidden">ربط المتاجر</span>
+                    <SidebarMenuButton asChild isActive={window.location.pathname === "/dashboard/categories"}>
+                      <Link to="/dashboard/categories" className="flex items-center gap-3 w-full">
+                        <Folder className="h-4 w-4 shrink-0" />
+                        <span className="group-data-[collapsible=icon]:hidden">الأقسام</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            {/* متاجرك المرتبطة */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">متاجرك المرتبطة</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {listLoading ? (
-                    <div className="p-2 space-y-2 group-data-[collapsible=icon]:hidden">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  ) : storesList.length > 0 ? (
-                    storesList.map((store) => (
-                      <SidebarMenuItem key={store.id}>
-                        <SidebarMenuButton asChild isActive={storeId === store.id}>
-                          <Link to={`/dashboard/stores?store_id=${store.id}&platform=${store.platform}`} className="flex items-center gap-3 w-full">
-                            <Store className="size-4 shrink-0" />
-                            <span className="group-data-[collapsible=icon]:hidden truncate">{store.platformStoreId}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))
-                  ) : (
-                    <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-                      <span className="text-xs text-muted-foreground px-2">لا يوجد متاجر مرتبطة</span>
-                    </SidebarMenuItem>
-                  )}
+               
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -172,17 +134,17 @@ export function DashboardLayout() {
                         <div className="flex items-center gap-2.5 overflow-hidden w-full justify-between">
                           <div className="flex items-center gap-2.5 overflow-hidden">
                             <Avatar className="size-8 rounded-lg border border-border">
-                              <AvatarImage src={user.user_metadata?.avatar_url} />
+                              <AvatarImage src={user.avatarUrl} />
                               <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase">
-                                {user.email?.substring(0, 2)}
+                                {user.name?.substring(0, 2) || user.email?.substring(0, 2)}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col items-start leading-none overflow-hidden text-right group-data-[collapsible=icon]:hidden">
-                              <span className="text-xs font-bold text-foreground truncate max-w-[110px]">
+                              <span className="text-xs font-bold text-foreground  max-w-[110px]">
                                 {userName}
                               </span>
-                              <span className="text-[10px] text-muted-foreground truncate max-w-[110px] mt-1">
-                                {user.email}
+                              <span className="text-[12px] text-muted-foreground  max-w-[110px] mt-1">
+                                {user.email || user.platformStoreId}
                               </span>
                             </div>
                           </div>
@@ -198,24 +160,24 @@ export function DashboardLayout() {
                     >
                       <div className="flex items-center gap-2.5 p-2 pb-2.5 border-b border-border/40 mb-1">
                         <Avatar className="size-8 rounded-lg border border-border shrink-0">
-                          <AvatarImage src={user.user_metadata?.avatar_url} />
+                          <AvatarImage src={user.avatarUrl} />
                           <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase">
-                            {user.email?.substring(0, 2)}
+                            {user.name?.substring(0, 2) || user.email?.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col items-start leading-tight text-right overflow-hidden">
                           <span className="text-xs font-bold text-foreground truncate max-w-[140px]">
                             {userName}
                           </span>
-                          <span className="text-[9px] text-muted-foreground truncate max-w-[140px] mt-0.5">
-                            {user.email}
+                          <span className="text-[12px] text-muted-foreground  max-w-[140px] mt-0.5">
+                            {user.email || user.platformStoreId}
                           </span>
                         </div>
                       </div>
                       
                       <DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50">
                         <CircleUser className="size-3.5 text-muted-foreground shrink-0" />
-                        <span>إعدادات الحساب</span>
+                        <span>حساب المتجر</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50">
                         <CreditCard className="size-3.5 text-muted-foreground shrink-0" />
@@ -248,41 +210,22 @@ export function DashboardLayout() {
         </Sidebar>
 
         {/* 2. منطقة المحتوى والترويسة */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+        <div className="flex-1 flex flex-col h-screen overflow-hidden">
           
-          {/* الترويسة العلوية */}
-          <header className="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-40">
+          {/* الترويسة العلوية المثبتة */}
+          <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6 z-40">
             
             {/* زر فتح/إغلاق القائمة الجانبية */}
             <SidebarTrigger className="h-9 w-9 border border-border shrink-0" />
 
             <div className="flex w-full items-center gap-4 md:mr-auto md:gap-2 lg:gap-4">
               <div className="mr-auto flex-1 sm:flex-initial" />
-
-              {/* أزرار التنقل السريع */}
-              {window.location.pathname === "/dashboard/stores" && !storeId && !listLoading && storesList.length > 0 && (
-                <Button variant="outline" asChild className="rounded-xl border-border hover:bg-accent/40 font-bold text-xs py-2 px-3 h-9 cursor-pointer">
-                  <Link to="/connect" className="flex items-center gap-1">
-                    <Plus className="size-3.5" />
-                    <span>ربط متجر جديد</span>
-                  </Link>
-                </Button>
-              )}
-
-              {window.location.pathname === "/dashboard/stores" && storeId && (
-                <Button variant="outline" asChild className="rounded-xl border-border hover:bg-accent/40 font-bold text-xs py-2 px-3 h-9 cursor-pointer">
-                  <Link to="/dashboard/stores" className="flex items-center gap-1">
-                    <ArrowRight className="size-3.5" />
-                    <span>رجوع للمتاجر</span>
-                  </Link>
-                </Button>
-              )}
             </div>
           </header>
 
-          {/* محتوى الصفحة الفرعية */}
-          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-            <Outlet context={{ user, storesList, listLoading }} />
+          {/* محتوى الصفحة الفرعية القابل للتمرير */}
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#fafafa]">
+            <Outlet context={{ user }} />
           </main>
         </div>
       </div>

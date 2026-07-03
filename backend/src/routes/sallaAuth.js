@@ -1,5 +1,5 @@
 import express from 'express';
-import { handleSallaRedirect, handleSallaCallback } from '../controllers/sallaAuthController.js';
+import { handleSallaRedirect, handleSallaCallback } from '../controllers/salla/sallaAuthController.js';
 
 const router = express.Router();
 

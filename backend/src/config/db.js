@@ -34,8 +34,8 @@ const testConnection = async () => {
     await sequelize.authenticate();
     console.log('⚡ Database connected successfully via Sequelize ORM.');
     
-    // إنشاء أو تحديث الجداول في قاعدة البيانات تلقائياً (مفيد جداً في التطوير)
-    await sequelize.sync({ alter: true });
+    // إنشاء الجداول في قاعدة البيانات تلقائياً (بدون alter لتفادي تكرار الفهارس)
+    await sequelize.sync();
     console.log('⚡ Database tables synchronized successfully.');
   } catch (error) {
     console.error('❌ Database connection failed:', error);

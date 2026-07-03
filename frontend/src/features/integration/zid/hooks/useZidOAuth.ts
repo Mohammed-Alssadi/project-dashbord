@@ -1,19 +1,26 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { apiClient } from "@/services/apiClient";
 
-// هوك إدارة ربط متجر زد (Zid OAuth Hook)
-// يحتوي حالياً على محاكاة لعملية الربط (Preview Mode) دون استدعاء للباك إند
 export const useZidOAuth = () => {
   const [connecting, setConnecting] = useState(false);
 
   const connectZid = async () => {
-    setConnecting(true);
-    
-    // محاكاة تأخير بسيط للربط قبل تفعيل الزر مجدداً
-    setTimeout(() => {
-      toast.info("تمت محاكاة الاتصال بمتجر زد بنجاح (وضع المعاينة).");
+    try {
+      setConnecting(true);
+      const res = await apiClient.get('/auth/zid/redirect');
+      
+      if (res.data.success && res.data.oauthUrl) {
+        window.location.href = res.data.oauthUrl;
+      } else {
+        toast.error(res.data.message || 'حدث خطأ أثناء تهيئة الربط مع زد');
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error('تعذر الاتصال بالخادم');
+    } finally {
       setConnecting(false);
-    }, 1000);
+    }
   };
 
   return { connectZid, connecting };

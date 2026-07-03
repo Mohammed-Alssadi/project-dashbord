@@ -1,6 +1,4 @@
-// zidConfig.js
-// إعدادات الربط والـ OAuth الخاصة بمنصة زد
-// يستورد هذا الملف المتغيرات مباشرة من process.env لتكون معزولة داخل خدمة زد
+import 'dotenv/config';
 
 export const zidConfig = {
   // Client ID الخاص بالتطبيق على منصة زد partners
@@ -10,5 +8,11 @@ export const zidConfig = {
   clientSecret: process.env.ZID_CLIENT_SECRET,
   
   // رابط العودة (Redirect Callback URI) المسجل في زد
-  redirectUri: process.env.ZID_REDIRECT_URI || 'http://localhost:5000/api/auth/zid/callback',
+  redirectUri:`${process.env.APP_URL}/auth/zid/callback`,
+
+  // رابط واجهة الـ Frontend (للتحويل بعد الدخول)
+  frontendUrl: process.env.APP_URL,
+
+  // رابط الـ Auth الأساسي لمنصة زد
+  authBaseUrl: process.env.ZID_AUTH_BASE_URL || 'https://oauth.zid.sa',
 };

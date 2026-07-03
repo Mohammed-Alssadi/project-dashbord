@@ -1,19 +1,30 @@
 import { Button } from "@/components/ui/button"
-import { Sparkles, ArrowLeft, ShieldCheck, Zap, BarChart3, Layers } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Sparkles, ArrowLeft, ShieldCheck, Zap, BarChart3, Layers, User, LogOut } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
+import { useAuthState } from "@/features/auth/hooks/useAuthState"
+import { authService } from "@/features/auth/services/authService"
+
 export function WelcomeHero() {
+  const { isLoggedIn } = useAuthState()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await authService.logout()
+    navigate("/")
+  }
 
   return (
     <div className="relative min-h-screen w-full bg-background text-foreground overflow-hidden font-sans selection:bg-accent selection:text-accent-foreground">
-      {/* Background Grid Pattern (Uses global border color opacity) */}
+      {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-border)_1px,transparent_1px),linear-gradient(to_bottom,var(--color-border)_1px,transparent_1px)] bg-[size:32px_32px] opacity-20 pointer-events-none" />
       
-      {/* Soft Pastel Ambient Light Blobs (Inherits from theme primary/accent colors) */}
+      {/* Ambient Light Blobs */}
       <div className="absolute top-[-10%] right-[10%] w-[350px] md:w-[600px] h-[350px] md:h-[600px] rounded-full bg-primary/10 blur-[80px] md:blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[10%] left-[5%] w-[300px] md:w-[500px] h-[300px] md:h-[500px] rounded-full bg-accent/30 blur-[80px] md:blur-[120px] pointer-events-none" />
 
-      {/* Modern Light Header / Navigation Mockup (Pure theme styles) */}
+      {/* Header */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between border-b border-border/60 backdrop-blur-md bg-background/40">
+        {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="size-9 rounded-xl bg-gradient-to-tr from-primary to-primary/80 flex items-center justify-center shadow-md shadow-primary/20">
             <Layers className="size-5 text-primary-foreground" />
@@ -22,15 +33,44 @@ export function WelcomeHero() {
             DashAI
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" asChild className="text-muted-foreground hover:text-foreground hover:bg-accent/50 text-sm cursor-pointer rounded-xl font-medium">
-            <Link to="/dashboard">لوحة التحكم</Link>
-          </Button>
-          <Button variant="default" asChild className="shadow-md shadow-primary/10 text-sm cursor-pointer rounded-xl px-4 font-medium">
-            <Link to="/connect">اربط متجرك الآن</Link>
-          </Button>
+
+        {/* Nav Actions */}
+        <div className="flex items-center gap-2">
+          {isLoggedIn ? (
+            <>
+              {/* أيقونة الانتقال للداشبورد */}
+              <Link
+                to="/dashboard"
+                title="لوحة التحكم"
+                className="size-9 rounded-xl flex items-center justify-center border border-border/70 bg-accent/40 hover:bg-accent hover:border-primary/30 text-foreground transition-all duration-200"
+              >
+                <User className="size-4" />
+              </Link>
+
+              {/* أيقونة تسجيل الخروج */}
+              <button
+                id="logout-icon-btn"
+                onClick={handleLogout}
+                title="تسجيل الخروج"
+                className="size-9 rounded-xl flex items-center justify-center border border-border/70 bg-accent/40 hover:bg-red-500/10 hover:border-red-400/40 text-muted-foreground hover:text-red-500 transition-all duration-200 cursor-pointer"
+              >
+                <LogOut className="size-4" />
+              </button>
+            </>
+          ) : (
+            /* زر تسجيل الدخول للزوار */
+            <Button
+              id="nav-login-btn"
+              variant="default"
+              asChild
+              className="shadow-md shadow-primary/10 text-sm cursor-pointer rounded-xl px-5 font-medium"
+            >
+              <Link to="/login">تسجيل الدخول</Link>
+            </Button>
+          )}
         </div>
       </header>
+
 
       {/* Main Content Container */}
       <main className="relative z-10 w-full max-w-7xl mx-auto px-6 py-16 md:py-24 flex flex-col items-center">
@@ -38,7 +78,7 @@ export function WelcomeHero() {
         {/* Top Glow Badge */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent border border-border text-accent-foreground text-xs md:text-sm font-semibold mb-8 shadow-sm">
           <Sparkles className="size-4 text-primary animate-pulse" />
-          <span>نظام ممتد وذكي يندمج مباشرة مع متجرك الحالي على زد (Zid)</span>
+          <span>نظام ممتد وذكي يندمج مباشرة مع متجرك على سلة أو زد</span>
         </div>
 
         {/* Hero Section Title & Description */}
@@ -50,20 +90,20 @@ export function WelcomeHero() {
             </span>
           </h1>
           <p className="text-base md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            دون الحاجة لبناء متجر جديد، اندمج مباشرة مع منصتك الحالية لتتحكم بمنتجاتك، تحلل مبيعاتك وتدير طلباتك من لوحة تحكم موحدة مجهزة بأحدث أدوات الذكاء الاصطناعي.
+            دون الحاجة لبناء متجر جديد، سجل دخولك عبر منصتك الحالية لتتحكم بمنتجاتك، تحلل مبيعاتك وتدير طلباتك من لوحة تحكم مجهزة بأحدث أدوات الذكاء الاصطناعي.
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-4 mt-10 w-full justify-center">
           <Button size="lg" asChild className="w-full sm:w-auto px-8 py-6 rounded-2xl transition-all duration-300 shadow-xl shadow-primary/15 hover:shadow-primary/25 hover:-translate-y-0.5 text-base font-bold cursor-pointer border-0 group">
-            <Link to="/connect" className="flex items-center justify-center gap-2">
-              <span>ابدأ التجربة مجاناً</span>
+            <Link to="/login" className="flex items-center justify-center gap-2">
+              <span>ابدأ التجربة الآن</span>
               <ArrowLeft className="size-5 transition-transform group-hover:-translate-x-1" />
             </Link>
           </Button>
           <Button size="lg" variant="outline" className="w-full sm:w-auto px-8 py-6 rounded-2xl border-border hover:bg-accent/30 text-muted-foreground hover:text-foreground transition-all duration-300 text-base font-bold cursor-pointer">
-            اقرأ وثائق الربط
+            تعرف على المزيد
           </Button>
         </div>
 

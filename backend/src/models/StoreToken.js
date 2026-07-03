@@ -7,11 +7,11 @@ const StoreToken = sequelize.define('StoreToken', {
     autoIncrement: true,
     primaryKey: true
   },
-  storeId: {
+  userId: {
     type: DataTypes.UUID,
     allowNull: false,
     unique: true,
-    field: 'store_id' // اسم العمود الفعلي في قاعدة البيانات
+    field: 'user_id' 
   },
   accessToken: {
     type: DataTypes.TEXT('long'),

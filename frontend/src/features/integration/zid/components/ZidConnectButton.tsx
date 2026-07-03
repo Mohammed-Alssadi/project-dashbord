@@ -22,16 +22,10 @@ export function ZidConnectButton() {
             <span className="font-bold text-sm">
               {connecting ? "جاري الاتصال..." : "ربط متجر زد"}
             </span>
-            <span className="text-white/70 text-[10px] mt-1">
-              وضع المعاينة
-            </span>
           </div>
         </div>
         <ArrowLeft className="size-4 text-white/80" />
       </Button>
-      <p className="text-[10px] text-muted-foreground text-center">
-        ملاحظة: لربط متجر <span className="font-bold">ثاني</span>، يرجى تسجيل الخروج من منصة زد أولاً في متصفحك.
-      </p>
     </div>
   )
 }

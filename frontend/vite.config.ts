@@ -16,18 +16,28 @@ export default defineConfig({
   },
   server: {
     allowedHosts: ["dashai.serveousercontent.com"],
+    hmr: {
+      host: "localhost",
+      protocol: "ws",
+      port: 5173,
+    },
     proxy: {
       '/auth': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'dashai.serveousercontent.com',
       },
-      '/stores': {
+      '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'dashai.serveousercontent.com',
       },
       '/health': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
       }
     }
   }
