@@ -21,6 +21,11 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // تجاهل أخطاء 401 — تحدث بشكل طبيعي عند عدم وجود جلسة أو بعد تسجيل الخروج
+    // useAuthState يتعامل معها بصمت عبر try/catch الخاص به
+    if (error.response?.status === 401) {
+      return Promise.reject(error);
+    }
     const backendMessage = error.response?.data?.message;
     const defaultErrorMessage = 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً';
     toast.error(backendMessage || defaultErrorMessage);
