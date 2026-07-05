@@ -9,13 +9,18 @@ const baseApiUrl = import.meta.env.VITE_API_URL || '';
  */
 export const apiClient = axios.create({
   baseURL: baseApiUrl,
-  withCredentials: true, // إرسال الكوكي (JWT) مع كل طلب تلقائياً
+  withCredentials: true,
 });
 
-// معالجة الأخطاء العامة عبر toast
+// معالجة الاستجابات عبر interceptor
 apiClient.interceptors.response.use(
   (response) => {
-    if (response.data?.success && response.data?.message) {
+    // نعرض toast.success فقط على طلبات التعديل (مش GET)
+    // طلبات جلب البيانات العادية لا تحتاج إشعاراً
+    const method = response.config.method?.toUpperCase();
+    const isMutation = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+
+    if (isMutation && response.data?.success && response.data?.message) {
       toast.success(response.data.message);
     }
     return response;

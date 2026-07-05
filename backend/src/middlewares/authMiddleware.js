@@ -7,7 +7,7 @@ export const protect = async (req, res, next) => {
   // Check cookies first
   if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
-  } 
+  }
   // Then check Authorization header
   else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     token = req.headers.authorization.split(' ')[1];
@@ -18,7 +18,8 @@ export const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dashai_super_secret_key_2026');
+    // JWT_SECRET مضمون الوجود — server.js يوقف التشغيل إذا كان غائباً
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findByPk(decoded.userId);
 
     if (!user) {
@@ -28,13 +29,13 @@ export const protect = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    // Only log server errors, ignore standard JWT malformed/expired errors to keep console clean
     if (error.name !== 'JsonWebTokenError' && error.name !== 'TokenExpiredError') {
       console.error('Auth middleware error:', error);
     }
     return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
   }
 };
+
 
 /**
  * ميدل وير لجلب توكن المتجر المرتبط للمستخدم الحالي

@@ -1,27 +1,31 @@
 'use strict';
 
+/**
+ * Migration: إنشاء جدول توكنات المتاجر (store_tokens)
+ * يتطابق مع نموذج StoreToken.js الحالي ومرتبط بجدول users
+ */
 module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('store_tokens', {
       id: {
-        allowNull: false,
+        type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
-        type: Sequelize.INTEGER
+        allowNull: false
       },
-      store_id: {
+      user_id: {
         type: Sequelize.UUID,
         allowNull: false,
-        unique: true, // يضمن علاقة One-to-One مع المتاجر
+        unique: true, // علاقة One-to-One مع المستخدم
         references: {
-          model: 'linked_stores', // يجب أن يطابق اسم جدول المتاجر في قاعدة البيانات
+          model: 'users', // يطابق اسم جدول users الحالي
           key: 'id'
         },
         onUpdate: 'CASCADE',
-        onDelete: 'CASCADE' // عند حذف المتجر، يتم حذف توكناته تلقائياً
+        onDelete: 'CASCADE' // عند حذف المستخدم تُحذف توكناته
       },
       access_token: {
-        type: Sequelize.TEXT('long'), // نستخدم النص الطويل لأن التوكنز قد تكون كبيرة جداً وتتجاوز 255 حرف
+        type: Sequelize.TEXT('long'),
         allowNull: true
       },
       refresh_token: {
@@ -29,27 +33,27 @@ module.exports = {
         allowNull: true
       },
       manager_token: {
-        type: Sequelize.TEXT('long'), // خاص بمنصة زد (Zid)
+        type: Sequelize.TEXT('long'), // خاص بمنصة زد
         allowNull: true
       },
       expires_at: {
         type: Sequelize.DATE,
         allowNull: true
       },
-      createdAt: {
-        allowNull: false,
+      created_at: {
         type: Sequelize.DATE,
+        allowNull: false,
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
-      updatedAt: {
-        allowNull: false,
+      updated_at: {
         type: Sequelize.DATE,
-        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
+        allowNull: false,
+        defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
       }
     });
   },
 
-  down: async (queryInterface, Sequelize) => {
+  down: async (queryInterface) => {
     await queryInterface.dropTable('store_tokens');
   }
 };

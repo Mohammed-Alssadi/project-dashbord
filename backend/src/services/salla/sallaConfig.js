@@ -1,4 +1,3 @@
-import 'dotenv/config';
 
 export const sallaConfig = {
   // معرف العميل الخاص بالتطبيق على منصة سلة (Salla Partner Portal)

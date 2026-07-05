@@ -1,16 +1,16 @@
-import User from '../../models/User.js';
-import StoreToken from '../../models/StoreToken.js';
-import { storeProxyService } from '../../services/integration/storeProxyService.js';
+import { User, StoreToken } from '../../models/index.js';
+import { fetchSallaStoreProfile } from '../../services/salla/sallaClient.js';
+import { fetchZidStoreProfile } from '../../services/zid/zidClient.js';
 import cache from '../../utils/cache.js';
 
 export const getStoreProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // comes from protect middleware
+    const userId = req.user.id;
 
     // 1. تحقق من الكاش أولاً (إلا إذا تم طلب تحديث إجباري)
     const forceRefresh = req.query.force === 'true';
     const cacheKey = `store_profile_${userId}`;
-    
+
     if (!forceRefresh) {
       const cachedData = cache.get(cacheKey);
       if (cachedData) {
@@ -22,33 +22,41 @@ export const getStoreProfile = async (req, res) => {
       }
     }
 
-    // 2. إذا لم يكن في الكاش، جلب تفاصيل المستخدم لتحديد المنصة
+    // 2. جلب تفاصيل المستخدم لتحديد المنصة
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     }
 
-    // 3. جلب التوكن الخاص بالمستخدم
+    // 3. جلب التوكن الخاص بالمستخدم من قاعدة البيانات
     const storeToken = await StoreToken.findOne({ where: { userId } });
     if (!storeToken || !storeToken.accessToken) {
       return res.status(401).json({ success: false, message: 'رمز الوصول للمنصة مفقود، يرجى إعادة تسجيل الدخول' });
     }
 
-    // 4. استدعاء السيرفر الوسيط (Proxy) لجلب وتصفية البيانات
-    const profileResponse = await storeProxyService.getStoreProfile(user.platform, storeToken.accessToken);
+    // 4. استدعاء الخدمة المباشرة للمنصة وجلب البيانات حية من الـ API
+    let profileData = null;
 
-    if (!profileResponse.success) {
-      return res.status(400).json({ success: false, message: profileResponse.message });
+    if (user.platform === 'salla') {
+      profileData = await fetchSallaStoreProfile(storeToken.accessToken);
+    } else if (user.platform === 'zid') {
+      profileData = await fetchZidStoreProfile(storeToken.accessToken, storeToken.managerToken);
+    } else {
+      return res.status(400).json({ success: false, message: 'المنصة الحالية غير مدعومة لجلب البيانات' });
     }
 
-    // 5. حفظ النتيجة في الكاش (الافتراضي 5 دقائق حسب إعدادات utils/cache.js)
-    cache.set(cacheKey, profileResponse.data);
+    if (!profileData) {
+      return res.status(400).json({ success: false, message: 'فشل في جلب بيانات المتجر من المنصة' });
+    }
 
-    // 6. إرجاع البيانات النظيفة للفرونت إند
+    // 5. حفظ النتيجة في الكاش للسرعة (5 دقائق)
+    cache.set(cacheKey, profileData);
+
+    // 6. إرجاع البيانات للفرونت إند
     return res.status(200).json({
       success: true,
       source: 'api',
-      data: profileResponse.data
+      data: profileData
     });
 
   } catch (error) {

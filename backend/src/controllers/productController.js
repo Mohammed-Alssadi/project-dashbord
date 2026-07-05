@@ -8,23 +8,29 @@ import cache from '../utils/cache.js';
  */
 export const getProducts = async (req, res) => {
   try {
-    const platform = req.user.platform; // salla | zid
-    const accessToken = req.shopToken;  // توكن المتجر
+    const platform = req.user.platform;
+    const accessToken = req.shopToken;
 
-    // قراءة معاملات الاستعلام (Query Parameters)
-    const { page = 1, per_page = 10, keyword = '', status = '', category = '', force } = req.query;
+    // ─── Input Validation ─────────────────────────────────────────────────────
+    let page = parseInt(req.query.page) || 1;
+    let per_page = parseInt(req.query.per_page) || 10;
+    const keyword = String(req.query.keyword || '').slice(0, 100); // حد أقصى 100 حرف
+    const status = String(req.query.status || '');
+    const category = String(req.query.category || '');
+    const force = req.query.force === 'true';
 
-    const forceRefresh = force === 'true';
+    // ضمانات الحدود
+    if (page < 1) page = 1;
+    if (per_page < 1) per_page = 10;
+    if (per_page > 50) per_page = 50; // حد أقصى 50 منتج للحماية من الإغراق
+
+    const forceRefresh = force;
     const cacheKey = `products_${req.user.id}_${page}_${per_page}_${keyword}_${status}_${category}`;
 
     if (!forceRefresh) {
       const cachedData = cache.get(cacheKey);
       if (cachedData) {
-        return res.status(200).json({
-          success: true,
-          source: 'cache',
-          ...cachedData
-        });
+        return res.status(200).json({ success: true, source: 'cache', ...cachedData });
       }
     }
 
@@ -77,7 +83,8 @@ export const getProducts = async (req, res) => {
       }
 
     } else if (platform === 'zid') {
-      console.log('Zid product fetching is currently disabled/stubbed.');
+      // Zid product fetching — قيد الدعم
+      return res.status(400).json({ success: false, message: 'جلب المنتجات من زد غير مدعوم حالياً' });
     } else {
       return res.status(400).json({
         success: false,
@@ -118,7 +125,7 @@ export const getProducts = async (req, res) => {
     console.error('Error in getProducts controller:', error);
     return res.status(500).json({
       success: false,
-      message: error.message || 'Error occurred while fetching products'
+      message: 'حدث خطأ أثناء جلب المنتجات'
     });
   }
 };

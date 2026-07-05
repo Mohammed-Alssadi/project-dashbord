@@ -1,4 +1,3 @@
-import 'dotenv/config';
 
 export const zidConfig = {
   // Client ID الخاص بالتطبيق على منصة زد partners

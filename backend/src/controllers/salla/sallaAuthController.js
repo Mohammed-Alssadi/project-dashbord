@@ -1,11 +1,11 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { sallaConfig } from '../../services/salla/sallaConfig.js';
 import { exchangeSallaCodeForTokens } from '../../services/salla/sallaAuth.js';
 import { fetchSallaMerchantProfile } from '../../services/salla/sallaClient.js';
 import { StoreToken, User } from '../../models/index.js';
 
-// sallaAuthController.js
-// متحكم مصادقة سلة (Salla Auth Controller)
+// sallaAuthController.js — متحكم مصادقة سلة
 // دور هذا المتحكم هو التنسيق فقط واستدعاء الخدمات المعزولة وإرجاع الاستجابات للويب
 
 /**
@@ -14,19 +14,34 @@ import { StoreToken, User } from '../../models/index.js';
  */
 export const handleSallaRedirect = async (req, res) => {
   try {
-    // بناء رابط OAuth الآمن باستخدام العناوين المخزنة في sallaConfig
+    // توليد state عشوائي لمنع هجمات CSRF
+    const oauthState = crypto.randomBytes(16).toString('hex');
+
+    // حفظ الـ state في cookie مؤقت آمن (يُحذف بعد 10 دقائق)
+    res.cookie('salla_oauth_state', oauthState, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 10 * 60 * 1000 // 10 دقائق
+    });
+
+    // بناء رابط OAuth الآمن
     const authUrl = `${sallaConfig.authBaseUrl}/oauth2/auth?` +
       `response_type=code` +
       `&client_id=${sallaConfig.clientId}` +
       `&redirect_uri=${encodeURIComponent(sallaConfig.redirectUri)}` +
       (sallaConfig.scopes ? `&scope=${sallaConfig.scopes}` : '') +
-      `&state=salla_secure_state`;
+      `&state=${oauthState}`;
 
-    // إرجاع الرابط كاستجابة JSON للفرونت إند ليقوم بتحويل متصفح العميل إليه
-    res.json({ success: true, oauthUrl: authUrl });
+    // التحقق مما إذا كان الطلب من المتصفح مباشرة أو عبر API
+    if (req.headers.accept && req.headers.accept.includes('json')) {
+      res.json({ success: true, oauthUrl: authUrl });
+    } else {
+      res.redirect(authUrl);
+    }
   } catch (error) {
     console.error('Salla Redirect Error:', error);
-    res.status(500).json({ success: false, message: ' salla connect error' });
+    res.status(500).json({ success: false, message: 'salla connect error' });
   }
 };
 
@@ -35,9 +50,21 @@ export const handleSallaRedirect = async (req, res) => {
  * GET /auth/salla/callback
  */
 export const handleSallaCallback = async (req, res) => {
-  const { code } = req.query;
+  const { code, state } = req.query;
+
+  // التحقق من state لمنع هجمات CSRF
+  const savedState = req.cookies?.salla_oauth_state;
+  console.log(`[Salla OAuth Debug] Cookie savedState: "${savedState}" | Query state: "${state}"`);
+
+  if (!savedState || savedState !== state) {
+    console.error(`Salla OAuth: state mismatch — possible CSRF attack. Saved: "${savedState}", Received: "${state}"`);
+    return res.redirect(`${sallaConfig.frontendUrl}/login?error=invalid_state`);
+  }
+  // حذف state cookie بعد التحقق
+  res.clearCookie('salla_oauth_state', { httpOnly: true, secure: true, sameSite: 'lax' });
+
   if (!code) {
-    return res.redirect(`${sallaConfig.frontendUrl}/dashboard/stores?error=no_code_provided`);
+    return res.redirect(`${sallaConfig.frontendUrl}/login?error=no_code_provided`);
   }
   try {
     // 1. استدعاء الخدمة لمقايضة الكود المؤقت بالتوكن الحقيقي
@@ -95,16 +122,16 @@ export const handleSallaCallback = async (req, res) => {
       });
     }
 
-    // إصدار JWT للمستخدم وحفظه في كوكي httpOnly آمن
+    // إصدار JWT للمستخدم وحفظه في cookie httpOnly آمن
     const jwtToken = jwt.sign(
-      { userId: user.id }, 
-      process.env.JWT_SECRET || 'dashai_super_secret_key_2026', 
+      { userId: user.id },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    
+
     res.cookie('token', jwtToken, {
       httpOnly: true,
-      secure: true,       // دائماً secure لأننا نستخدم HTTPS
+      secure: true,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 أيام
     });

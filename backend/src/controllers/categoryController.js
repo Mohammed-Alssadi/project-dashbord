@@ -8,23 +8,27 @@ import cache from '../utils/cache.js';
  */
 export const getCategoriesList = async (req, res) => {
   try {
-    const platform = req.user.platform; // salla | zid
-    const accessToken = req.shopToken;  // توكن المتجر
+    const platform = req.user.platform;
+    const accessToken = req.shopToken;
 
-    // قراءة معاملات الاستعلام
-    const { page = 1, per_page = 10, keyword = '', status = '', force } = req.query;
+    // ─── Input Validation ──────────────────────────────────────────────────────
+    let page = parseInt(req.query.page) || 1;
+    let per_page = parseInt(req.query.per_page) || 10;
+    const keyword = String(req.query.keyword || '').slice(0, 100);
+    const status = String(req.query.status || '');
+    const force = req.query.force === 'true';
 
-    const forceRefresh = force === 'true';
+    if (page < 1) page = 1;
+    if (per_page < 1) per_page = 10;
+    if (per_page > 100) per_page = 100;
+
+    const forceRefresh = force;
     const cacheKey = `categories_${req.user.id}_${page}_${per_page}_${keyword}_${status}`;
 
     if (!forceRefresh) {
       const cachedData = cache.get(cacheKey);
       if (cachedData) {
-        return res.status(200).json({
-          success: true,
-          source: 'cache',
-          ...cachedData
-        });
+        return res.status(200).json({ success: true, source: 'cache', ...cachedData });
       }
     }
 
@@ -32,59 +36,48 @@ export const getCategoriesList = async (req, res) => {
     let pagination = null;
 
     if (platform === 'salla') {
-      const result = await fetchSallaCategories(accessToken, {
-        page: page || 1,
-        per_page: per_page || 10,
-        keyword,
-        status
-      });
-
+      const result = await fetchSallaCategories(accessToken, { page, per_page, keyword, status });
       categories = result.categories || [];
       pagination = result.pagination;
 
     } else if (platform === 'zid') {
-      console.log('Zid category listing is currently stubbed.');
+      // Zid category listing — قيد الدعم
+      return res.status(400).json({ success: false, message: 'جلب التصنيفات من زد غير مدعوم حالياً' });
     } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Platform not currently supported'
-      });
+      return res.status(400).json({ success: false, message: 'منصة غير مدعومة' });
     }
 
     // توحيد وتوطين بيانات التصنيفات
     const normalizedCategories = categories.map(c => transformCategory(platform, c));
 
-    // إعداد كائن الترقيم الموحد
+    // ─── Pagination موحّد camelCase ────────────────────────────────────────────
     const normalizedPagination = pagination ? {
-      currentPage: Number(pagination.currentPage || pagination.current_page) || 1,
-      totalPages: Number(pagination.totalPages || pagination.total_pages) || Math.ceil((pagination.total || 0) / (pagination.perPage || pagination.per_page || 10)) || 1,
-      perPage: Number(pagination.perPage || pagination.per_page) || 10,
+      currentPage: Number(pagination.current_page || pagination.currentPage) || 1,
+      totalPages: Number(pagination.total_pages || pagination.totalPages) || Math.ceil((pagination.total || 0) / per_page) || 1,
+      perPage: Number(pagination.per_page || pagination.perPage) || per_page,
       total: Number(pagination.total) || 0
-    } : null;
+    } : {
+      currentPage: page,
+      totalPages: 1,
+      perPage: per_page,
+      total: normalizedCategories.length
+    };
 
     const responseData = {
       data: normalizedCategories,
-      pagination: normalizedPagination || {
-        current_page: Number(page) || 1,
-        total_pages: 1,
-        per_page: Number(per_page) || 10,
-        total: normalizedCategories.length
-      }
+      pagination: normalizedPagination
     };
 
-    // حفظ في الكاش لمدة 5 دقائق (300 ثانية - الافتراضي)
     cache.set(cacheKey, responseData);
 
-    return res.status(200).json({
-      success: true,
-      source: 'api',
-      ...responseData
-    });
+    return res.status(200).json({ success: true, source: 'api', ...responseData });
+
   } catch (error) {
     console.error('Error in getCategoriesList controller:', error);
     return res.status(500).json({
       success: false,
-      message: error.message || 'Error occurred while fetching store categories'
+      message: 'حدث خطأ أثناء جلب التصنيفات'
     });
   }
 };
+
