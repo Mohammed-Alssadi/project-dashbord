@@ -29,29 +29,28 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { getSallaOAuthUrl } from "@/features/auth/services/sallaAuthApi"
+import { useAuthState } from "@/features/auth/hooks/useAuthState"
 
 /**
  * صفحة إدارة المنتجات المتقدمة والديناميكية (Enterprise Products Management)
  */
 export function ProductsPage() {
+  const { user } = useAuthState()
   const {
     products,
     loading,
     refresh,
     paginationInfo,
     categories, // قراءة التصنيفات الشاملة من الخطاف
-    types,      // قراءة الأنواع الشاملة من الخطاف
     page,
     searchTerm,
     status,
     category,
-    type,
     error,
     setPage,
     setSearchTerm,
     setStatus,
-    setCategory,
-    setType
+    setCategory
   } = useProducts()
 
   // تجهيز قوائم الخيارات مع إضافة خيار "الكل" افتراضياً
@@ -59,15 +58,30 @@ export function ProductsPage() {
     return [
       { id: "الكل", name: "القسم: الكل" },
       ...categories.map(cat => ({
-        id: String(cat.id),
+        // زد تستخدم الـ slug للتصفية في الـ API بينما سلة تستخدم المعرف الرقمي
+        id: user?.platform === 'zid' ? (cat.slug || String(cat.id)) : String(cat.id),
         name: `القسم: ${cat.name || 'عام'}`
       }))
     ]
-  }, [categories])
+  }, [categories, user?.platform])
 
-  const typeOptions = useMemo(() => {
-    return ["الكل", ...types]
-  }, [types])
+  const statusOptions = useMemo(() => {
+    if (user?.platform === 'zid') {
+      return [
+        { id: "الكل", name: "الحالة: الكل" },
+        { id: "active", name: "الحالة: active" },
+        { id: "hidden", name: "الحالة: hidden" },
+        { id: "draft", name: "الحالة: draft" },
+        { id: "out_of_stock", name: "الحالة: out_of_stock" }
+      ]
+    }
+    return [
+      { id: "الكل", name: "الحالة: الكل" },
+      { id: "active", name: "الحالة: active" },
+      { id: "hidden", name: "الحالة: hidden" },
+      { id: "out_of_stock", name: "الحالة: out_of_stock" }
+    ]
+  }, [user?.platform])
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in font-sans text-right" dir="rtl">
@@ -84,7 +98,7 @@ export function ProductsPage() {
         </div>
         
         <Button 
-          onClick={() => refresh(true)} 
+          onClick={() => refresh()} 
           disabled={loading}
           variant="outline"
           size="sm"
@@ -164,34 +178,22 @@ export function ProductsPage() {
               </Select>
             </div>
 
-            {/* فلترة بالحالة */}
-            <div className="flex flex-col">
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="w-full h-9 text-xs border-border/70 bg-background text-foreground rounded-lg shadow-none flex justify-between items-center text-right font-sans">
-                  <SelectValue placeholder="اختر الحالة" />
-                </SelectTrigger>
-                <SelectContent className="text-right" align="end">
-                  <SelectItem value="الكل">الحالة: الكل</SelectItem>
-                  <SelectItem value="active">الحالة: active</SelectItem>
-                  <SelectItem value="hidden">الحالة: hidden</SelectItem>
-                  <SelectItem value="out_of_stock">الحالة: out_of_stock</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* فلترة بالحالة (فقط لسلة، لأن زد لا يدعمها في الـ API) */}
+            {user?.platform !== 'zid' && (
+              <div className="flex flex-col">
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="w-full h-9 text-xs border-border/70 bg-background text-foreground rounded-lg shadow-none flex justify-between items-center text-right font-sans">
+                    <SelectValue placeholder="اختر الحالة" />
+                  </SelectTrigger>
+                  <SelectContent className="text-right" align="end">
+                    {statusOptions.map((opt, idx) => (
+                      <SelectItem key={idx} value={opt.id}>{opt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            {/* فلترة بالنوع */}
-            <div className="flex flex-col">
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="w-full h-9 text-xs border-border/70 bg-background text-foreground rounded-lg shadow-none flex justify-between items-center text-right font-sans">
-                  <SelectValue placeholder="اختر نوع المنتج" />
-                </SelectTrigger>
-                <SelectContent className="text-right" align="end">
-                  {typeOptions.map((t, idx) => (
-                    <SelectItem key={idx} value={t}>{t === "الكل" ? "النوع: الكل" : `النوع: ${t}`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
 

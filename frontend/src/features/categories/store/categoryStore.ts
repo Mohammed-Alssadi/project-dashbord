@@ -16,7 +16,7 @@ interface CategoryState {
   setSearchTerm: (term: string) => void;
   setKeyword: (keyword: string) => void;
   setStatus: (status: string) => void;
-  fetchCategories: (force?: boolean) => Promise<void>;
+  fetchCategories: () => Promise<void>;
 }
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
@@ -34,7 +34,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   setKeyword: (keyword) => set({ keyword, page: 1 }),
   setStatus: (status) => set({ status, page: 1 }),
 
-  fetchCategories: async (force: boolean = false) => {
+  fetchCategories: async () => {
     try {
       set({ loading: true, error: null });
       const { page, keyword, status } = get();
@@ -47,8 +47,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         page,
         per_page: 10,
         keyword: apiKeyword,
-        status: apiStatus,
-        force
+        status: apiStatus
       });
 
       set({

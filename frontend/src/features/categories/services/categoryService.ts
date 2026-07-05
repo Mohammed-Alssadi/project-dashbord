@@ -12,6 +12,11 @@ export interface Category {
   updatedAt: string;
   subCategories: Category[];
   platform: string;
+  seo?: {
+    title: string | null;
+    description: string | null;
+    url: string | null;
+  };
   metadata?: {
     title: string | null;
     description: string | null;
@@ -35,7 +40,6 @@ export interface CategoriesFilterParams {
   per_page?: number;
   keyword?: string;
   status?: string;
-  force?: boolean;
 }
 
 export interface CategoriesApiResponse {

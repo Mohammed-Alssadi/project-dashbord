@@ -11,7 +11,9 @@ import {
   ChevronUp, 
   Smartphone, 
   Gift, 
-  EyeOff 
+  EyeOff,
+  ShoppingBag,
+  Fingerprint
 } from "lucide-react"
 import type { Category } from "../services/categoryService"
 
@@ -26,14 +28,16 @@ export function CategoryRow({ category }: CategoryRowProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   // قراءة متغيرات الميتا وأماكن الظهور الإضافية من كائن القسم (إن وجدت)
-  const showInApp = (category as any).showIn?.app ?? true
-  const showInPoints = (category as any).showIn?.salla_points ?? false
+  const showInApp = category.showIn?.app ?? true
+  const showInPoints = category.showIn?.salla_points ?? false
   const hasHiddenProducts = category.hasHiddenProducts ?? false
+  const productsCount = (category as any).productsCount ?? null
+  const uuid = (category as any).uuid || null
   
-  // قراءة بيانات SEO
-  const seoTitle = (category as any).metadata?.title || 'N/A'
-  const seoDescription = (category as any).metadata?.description || 'N/A'
-  const seoUrl = (category as any).metadata?.url || 'N/A'
+  // قراءة بيانات SEO من الكائن الموحد
+  const seoTitle = category.seo?.title || 'N/A'
+  const seoDescription = category.seo?.description || 'N/A'
+  const seoUrl = category.seo?.url || 'N/A'
 
   return (
     <>
@@ -165,42 +169,80 @@ export function CategoryRow({ category }: CategoryRowProps) {
           <TableCell colSpan={7} className="p-4 border-t border-border/30">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-right text-xs text-foreground font-sans">
               
-              {/* العمود الأول: أماكن الظهور وخصائص القسم */}
+
+
+              {/* العمود الأول: خصائص القسم وأماكن الظهور ديناميكياً حسب المنصة */}
               <div className="space-y-3 border-l border-border/40 pl-4">
                 <h4 className="font-bold text-sm text-primary mb-2">خصائص القسم وأماكن الظهور</h4>
                 
-                <div className="flex items-center justify-between py-1.5 border-b border-border/20">
-                  <div className="flex items-center gap-1.5">
-                    <Smartphone className="size-4 text-muted-foreground" />
-                    <span>الظهور في التطبيق:</span>
-                  </div>
-                  <Badge variant={showInApp ? "default" : "secondary"} className={showInApp ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
-                    {showInApp ? "نشط" : "معطل"}
-                  </Badge>
-                </div>
+                {category.platform === 'salla' ? (
+                  <>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                      <div className="flex items-center gap-1.5">
+                        <Smartphone className="size-4 text-muted-foreground" />
+                        <span>الظهور في التطبيق:</span>
+                      </div>
+                      <Badge variant={showInApp ? "default" : "secondary"} className={showInApp ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
+                        {showInApp ? "نشط" : "معطل"}
+                      </Badge>
+                    </div>
 
-                <div className="flex items-center justify-between py-1.5 border-b border-border/20">
-                  <div className="flex items-center gap-1.5">
-                    <Gift className="size-4 text-muted-foreground" />
-                    <span>الظهور في نقاط سلة:</span>
-                  </div>
-                  <Badge variant={showInPoints ? "default" : "secondary"} className={showInPoints ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
-                    {showInPoints ? "نشط" : "معطل"}
-                  </Badge>
-                </div>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                      <div className="flex items-center gap-1.5">
+                        <Gift className="size-4 text-muted-foreground" />
+                        <span>الظهور في نقاط سلة:</span>
+                      </div>
+                      <Badge variant={showInPoints ? "default" : "secondary"} className={showInPoints ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
+                        {showInPoints ? "نشط" : "معطل"}
+                      </Badge>
+                    </div>
 
-                <div className="flex items-center justify-between py-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <EyeOff className="size-4 text-muted-foreground" />
-                    <span>يحتوي على منتجات مخفية:</span>
-                  </div>
-                  <Badge variant={hasHiddenProducts ? "destructive" : "secondary"}>
-                    {hasHiddenProducts ? "نعم" : "لا"}
-                  </Badge>
-                </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <EyeOff className="size-4 text-muted-foreground" />
+                        <span>يحتوي على منتجات مخفية:</span>
+                      </div>
+                      <Badge variant={hasHiddenProducts ? "destructive" : "secondary"}>
+                        {hasHiddenProducts ? "نعم" : "لا"}
+                      </Badge>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                      <div className="flex items-center gap-1.5">
+                        <ShoppingBag className="size-4 text-muted-foreground" />
+                        <span>عدد المنتجات بالقسم:</span>
+                      </div>
+                      <span className="font-bold text-foreground">
+                        {productsCount !== null ? productsCount : '0'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                      <div className="flex items-center gap-1.5">
+                        <Smartphone className="size-4 text-muted-foreground" />
+                        <span>حالة النشر:</span>
+                      </div>
+                      <Badge variant={category.status === 'active' ? "default" : "secondary"} className={category.status === 'active' ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""}>
+                        {category.status === 'active' ? "منشور" : "مسودة / مخفي"}
+                      </Badge>
+                    </div>
+
+                    {uuid && (
+                      <div className="flex flex-col gap-1 py-1.5">
+                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                          <Fingerprint className="size-4" />
+                          <span>رمز المعرف (UUID):</span>
+                        </div>
+                        <span className="font-mono text-[9px] bg-muted/40 p-1.5 rounded-lg border border-border/40 truncate select-all" dir="ltr">
+                          {uuid}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-
-              {/* العمود الثاني: محركات البحث (SEO Metadata) */}
               <div className="space-y-3 border-l border-border/40 pl-4">
                 <h4 className="font-bold text-sm text-primary mb-2">تهيئة محركات البحث (SEO)</h4>
                 

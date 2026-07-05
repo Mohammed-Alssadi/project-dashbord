@@ -27,11 +27,13 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { getSallaOAuthUrl } from "@/features/auth/services/sallaAuthApi"
+import { useAuthState } from "@/features/auth/hooks/useAuthState"
 
 /**
  * صفحة إدارة أقسام وتصنيفات المتجر (Categories Management)
  */
 export function CategoriesPage() {
+  const { user } = useAuthState()
   const {
     categories,
     loading,
@@ -61,7 +63,7 @@ export function CategoriesPage() {
         </div>
         
         <Button 
-          onClick={() => refresh(true)} 
+          onClick={() => refresh()} 
           disabled={loading}
           variant="outline"
           size="sm"
@@ -116,30 +118,34 @@ export function CategoriesPage() {
 
           {/* الفلاتر الفورية */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-            {/* البحث بالاسم */}
-            <div className="relative flex items-center col-span-1 sm:col-span-2">
-              <Search className="size-4 text-muted-foreground absolute right-3 shrink-0 pointer-events-none" />
-              <Input
-                placeholder="ابحث باسم القسم أو التصنيف..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pr-9 pl-3 h-9 text-xs rounded-lg border-border/70 focus-visible:ring-1 focus-visible:ring-primary bg-background shadow-none"
-              />
-            </div>
+            {user?.platform !== 'zid' && (
+              <>
+                {/* البحث بالاسم */}
+                <div className="relative flex items-center col-span-1 sm:col-span-2">
+                  <Search className="size-4 text-muted-foreground absolute right-3 shrink-0 pointer-events-none" />
+                  <Input
+                    placeholder="ابحث باسم القسم أو التصنيف..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pr-9 pl-3 h-9 text-xs rounded-lg border-border/70 focus-visible:ring-1 focus-visible:ring-primary bg-background shadow-none"
+                  />
+                </div>
 
-            {/* فلترة بالحالة */}
-            <div className="flex flex-col">
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger className="w-full h-9 text-xs border-border/70 bg-background text-foreground rounded-lg shadow-none flex justify-between items-center text-right font-sans">
-                  <SelectValue placeholder="اختر الحالة" />
-                </SelectTrigger>
-                <SelectContent className="text-right" align="end">
-                  <SelectItem value="الكل">الحالة: الكل</SelectItem>
-                  <SelectItem value="active">الحالة: نشط (active)</SelectItem>
-                  <SelectItem value="hidden">الحالة: مخفي (hidden)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                {/* فلترة بالحالة */}
+                <div className="flex flex-col">
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger className="w-full h-9 text-xs border-border/70 bg-background text-foreground rounded-lg shadow-none flex justify-between items-center text-right font-sans">
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent className="text-right" align="end">
+                      <SelectItem value="الكل">الحالة: الكل</SelectItem>
+                      <SelectItem value="active">الحالة: نشط (active)</SelectItem>
+                      <SelectItem value="hidden">الحالة: مخفي (hidden)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

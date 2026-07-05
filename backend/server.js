@@ -14,16 +14,17 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
-// ─── استيراد الموجهات (Routes) ────────────────────────────────────────────────
-import authRoutes from './src/routes/auth.js';
-import sallaAuthRoutes from './src/routes/sallaAuth.js';
-import zidAuthRoutes from './src/routes/zidAuth.js';
+// ─── استيراد الموجهات (Routes) الموحدة ────────────────────────────────────────
+import authRoutes from './src/routes/authRoutes.js';
+import storeRoutes from './src/routes/storeRoutes.js';
 import productRoutes from './src/routes/productRoutes.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
-import integrationRoutes from './src/routes/integrationRoutes.js';
+import { protect } from './src/middlewares/authMiddleware.js';
+import { getStoreProfile } from './src/controllers/storeController.js';
 
-// تهيئة الاتصال بقاعدة البيانات
-import './src/config/db.js';
+// تهيئة الاتصال بقاعدة البيانات وتفعيل العلاقات بين الـ Models
+import sequelize from './src/config/db.js';
+import './src/models/index.js'; // ← يُفعِّل: User.hasOne(StoreToken) + onDelete CASCADE
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -65,17 +66,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // لقراءة البيانات المرسلة كـ Form urlencoded (مثل callback منصة زد)
 app.use(cookieParser());
 
-// ─── مسارات الـ API ───────────────────────────────────────────────────────────
+// ─── مسارات الـ API الموحدة ───────────────────────────────────────────────────
+// مسارات المصادقة: /api/auth/* (API JSON) و /auth/* (OAuth redirect مع rate limit)
 app.use('/api/auth', authRoutes);
-app.use('/auth/salla', oauthLimiter, sallaAuthRoutes);
-app.use('/auth/zid', oauthLimiter, zidAuthRoutes);
+app.use('/auth', oauthLimiter, authRoutes);
+
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/integration', integrationRoutes);
+app.use('/api/store', storeRoutes);
 
-// ─── فحص جاهزية الخادم (Health Check) ───────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running' });
+// ─── توافق رجعي مع الفرونت إند القديم (/api/integration/*) ─────────────────
+// نستخدم router جديد بدلاً من نفس instance لتجنب مشاكل Express Router middleware chain
+const integrationRouter = express.Router();
+integrationRouter.use(protect);
+integrationRouter.get('/store-profile', getStoreProfile);
+app.use('/api/integration', integrationRouter);
+
+// ─── فحص جاهزية الخادم مع التحقق من DB (Health Check) ─────────────────────
+app.get('/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({
+      status: 'ok',
+      message: 'Backend is running',
+      database: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (dbError) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Backend is running but database is unreachable',
+      database: 'disconnected',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // ─── خدمة ملفات الفرونت إند الاستاتيكية ─────────────────────────────────────
@@ -86,16 +110,22 @@ if (!fs.existsSync(path.join(distPath, 'index.html'))) {
   distPath = path.join(__dirname, '../frontend/dist');
 }
 
-if (fs.existsSync(path.join(distPath, 'index.html'))) {
-  app.use(express.static(distPath));
+// تسجيل المجلد الاستاتيكي بشكل دائم
+app.use(express.static(distPath));
 
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/auth') || req.path.startsWith('/api') || req.path.startsWith('/health')) {
-      return next();
-    }
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
-}
+// توجيه جميع المسارات الأخرى إلى index.html الخاص بالفرونت إند ديناميكياً
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/auth') || req.path.startsWith('/api') || req.path.startsWith('/health')) {
+    return next();
+  }
+  
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend build (index.html) not found. Please ensure you have run "npm run build" in the frontend directory.');
+  }
+});
 
 // ─── Global Error Handler — يمسك أي خطأ غير معالَج ─────────────────────────
 app.use((err, req, res, _next) => {

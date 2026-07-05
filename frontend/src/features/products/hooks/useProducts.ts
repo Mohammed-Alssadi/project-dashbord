@@ -5,48 +5,58 @@ import { useProductStore } from '../store/productStore';
  * خطاف مخصص يعمل كجسر (Wrapper) لمخزن Zustand العالمي
  */
 export function useProducts() {
-  const store = useProductStore();
+  // استخلاص كل قيمة بشكل منفصل لتجنب stale closure و infinite re-renders
+  const products      = useProductStore(s => s.products);
+  const loading       = useProductStore(s => s.loading);
+  const error         = useProductStore(s => s.error);
+  const page          = useProductStore(s => s.page);
+  const searchTerm    = useProductStore(s => s.searchTerm);
+  const keyword       = useProductStore(s => s.keyword);
+  const status        = useProductStore(s => s.status);
+  const category      = useProductStore(s => s.category);
+  const paginationInfo = useProductStore(s => s.paginationInfo);
+  const categories    = useProductStore(s => s.categories);
+
+  const setPage        = useProductStore(s => s.setPage);
+  const setSearchTerm  = useProductStore(s => s.setSearchTerm);
+  const setKeyword     = useProductStore(s => s.setKeyword);
+  const setStatus      = useProductStore(s => s.setStatus);
+  const setCategory    = useProductStore(s => s.setCategory);
+  const fetchProducts  = useProductStore(s => s.fetchProducts);
+  const fetchCats      = useProductStore(s => s.fetchCategories);
 
   // 1. جلب تصنيفات المتجر مرة واحدة فقط عند تحميل الصفحة لأول مرة
   useEffect(() => {
-    store.fetchCategories();
+    fetchCats();
   }, []);
 
   // 2. تطبيق الـ Debounce للبحث (الانتظار 400ms بعد انتهاء الكتابة)
   useEffect(() => {
     const handler = setTimeout(() => {
-      store.setKeyword(store.searchTerm);
+      setKeyword(searchTerm);
     }, 400);
-
     return () => clearTimeout(handler);
-  }, [store.searchTerm]);
+  }, [searchTerm]);
 
   // 3. إعادة الطلب تلقائياً من الـ Store عند تغير الصفحة أو معاملات التصفية
   useEffect(() => {
-    store.fetchProducts();
-  }, [store.page, store.keyword, store.status, store.category, store.type]);
+    fetchProducts();
+  }, [page, keyword, status, category]);
 
   return {
-    products: store.products,
-    loading: store.loading,
-    error: store.error,
-    paginationInfo: store.paginationInfo,
-    categories: store.categories, // قائمة كائنات التصنيفات الشاملة [{ id, name }]
-    types: store.types,
-    
-    // الحالات الحالية للربط
-    page: store.page,
-    searchTerm: store.searchTerm,
-    status: store.status,
-    category: store.category,
-    type: store.type,
-    
-    // دوال التعديل والـ Actions
-    setPage: store.setPage,
-    setSearchTerm: store.setSearchTerm,
-    setStatus: store.setStatus,
-    setCategory: store.setCategory,
-    setType: store.setType,
-    refresh: store.fetchProducts
+    products,
+    loading,
+    error,
+    paginationInfo,
+    categories,
+    page,
+    searchTerm,
+    status,
+    category,
+    setPage,
+    setSearchTerm,
+    setStatus,
+    setCategory,
+    refresh: fetchProducts
   };
 }

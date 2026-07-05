@@ -25,7 +25,6 @@ export interface ProductsFilterParams {
   keyword?: string;
   status?: string;
   category?: string;
-  force?: boolean;
 }
 
 // واجهة معلومات الترقيم والصفحات
