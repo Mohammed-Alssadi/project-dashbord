@@ -82,16 +82,29 @@ export const handleCallback = async (req, res) => {
       tokens: normalizedTokens // نمرر الـ normalized tokens مباشرة
     });
 
-    // 5. إصدار JWT للجلسة وحفظها في الكوكيز
+    // 5. إصدار JWT للوصول (15 دقيقة) و JWT للـ Refresh (7 أيام) وحفظهما في الكوكيز
     const jwtToken = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '15m' } // قصير العمر
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id, type: 'refresh' },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' } // طويل العمر للتجديد
     );
 
     res.cookie('token', jwtToken, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000 // 15 دقيقة
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 أيام
     });
@@ -140,8 +153,9 @@ export const logout = (req, res) => {
     sameSite: 'lax'
   };
 
-  // مسح JWT token الرئيسي
+  // مسح JWT token الرئيسي وملف التجديد
   res.clearCookie('token', cookieOptions);
+  res.clearCookie('refreshToken', cookieOptions);
 
   // مسح أي OAuth state cookies متبقية لكل المنصات المدعومة
   ['salla', 'zid'].forEach((platform) => {

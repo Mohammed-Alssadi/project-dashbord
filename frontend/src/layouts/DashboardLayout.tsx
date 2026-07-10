@@ -33,7 +33,9 @@ import {
   Bell,
   Package,
   Folder,
-  Settings
+  Settings,
+  Users,
+  ShoppingBag
 } from "lucide-react"
 
 export function DashboardLayout() {
@@ -138,6 +140,22 @@ export function DashboardLayout() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="العملاء">
+                      <Link to="/dashboard/customers">
+                        <Users className="h-4 w-4" />
+                        <span>العملاء</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="الطلبات">
+                      <Link to="/dashboard/orders">
+                        <ShoppingBag className="h-4 w-4" />
+                        <span>الطلبات</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -232,9 +250,11 @@ export function DashboardLayout() {
                       <DropdownMenuSeparator className="my-1 border-border/40" />
                       
                       <DropdownMenuItem 
-                        onClick={async () => {
-                          await handleLogout()
-                          toast.success("تم تسجيل الخروج بنجاح")
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          handleLogout().then(() => {
+                            toast.success("تم تسجيل الخروج بنجاح", { id: "logout-toast" })
+                          })
                         }} 
                         className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive rounded-md"
                       >

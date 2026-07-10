@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/db.js';
+import { encryptToken, decryptToken } from '../utils/crypto.js';
 
 const StoreToken = sequelize.define('StoreToken', {
   id: {
@@ -16,17 +17,38 @@ const StoreToken = sequelize.define('StoreToken', {
   accessToken: {
     type: DataTypes.TEXT('long'),
     allowNull: true,
-    field: 'access_token'
+    field: 'access_token',
+    get() {
+      const rawValue = this.getDataValue('accessToken');
+      return rawValue ? decryptToken(rawValue) : null;
+    },
+    set(value) {
+      this.setDataValue('accessToken', value ? encryptToken(value) : null);
+    }
   },
   refreshToken: {
     type: DataTypes.TEXT('long'),
     allowNull: true,
-    field: 'refresh_token'
+    field: 'refresh_token',
+    get() {
+      const rawValue = this.getDataValue('refreshToken');
+      return rawValue ? decryptToken(rawValue) : null;
+    },
+    set(value) {
+      this.setDataValue('refreshToken', value ? encryptToken(value) : null);
+    }
   },
   managerToken: {
     type: DataTypes.TEXT('long'),
     allowNull: true,
-    field: 'manager_token'
+    field: 'manager_token',
+    get() {
+      const rawValue = this.getDataValue('managerToken');
+      return rawValue ? decryptToken(rawValue) : null;
+    },
+    set(value) {
+      this.setDataValue('managerToken', value ? encryptToken(value) : null);
+    }
   },
   expiresAt: {
     type: DataTypes.DATE,

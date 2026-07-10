@@ -21,7 +21,33 @@ export const protect = async (req, res, next) => {
 
   try {
     // 1. JWT_SECRET مضمون الوجود — server.js يوقف التشغيل إذا كان غائباً
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError' && req.cookies && req.cookies.refreshToken) {
+        // محاولة التجديد باستخدام الـ Refresh Token المحلي
+        const refreshDecoded = jwt.verify(req.cookies.refreshToken, process.env.JWT_SECRET);
+        if (refreshDecoded.type === 'refresh') {
+          const newToken = jwt.sign(
+            { userId: refreshDecoded.userId },
+            process.env.JWT_SECRET,
+            { expiresIn: '15m' }
+          );
+          res.cookie('token', newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 15 * 60 * 1000 // 15 دقيقة
+          });
+          decoded = refreshDecoded; // استكمال العمل كالمعتاد
+        } else {
+          throw new Error('Invalid token type');
+        }
+      } else {
+        throw err; // رمي الخطأ ليتم التقاطه في الـ catch الرئيسي
+      }
+    }
     
     // 2. جلب المستخدم من الـ Repository
     const user = await userRepository.findUserById(decoded.userId);

@@ -1,5 +1,5 @@
-import { useOutletContext } from 'react-router-dom';
-import type { StoreProfile } from '../types/storeProfile.types';
+import { useStoreProfile } from '../hooks/useStoreProfile';
+import { useAuthState } from '@/features/auth/hooks/useAuthState';
 import { StoreInfoCard } from '../components/StoreInfoCard';
 import { StoreLicensesCard } from '../components/StoreLicensesCard';
 import { StoreSocialCard } from '../components/StoreSocialCard';
@@ -8,17 +8,11 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function StoreSettingsPage() {
-  // نقوم باستخدام البيانات التي تم جلبها مسبقاً في DashboardLayout عبر الـ Context
-  // لتجنب إعادة طلب API مرتين
-  const context = useOutletContext<{ 
-    storeProfile: StoreProfile | null; 
-    loadingStore: boolean;
-    refetchStore: (force?: boolean) => Promise<void>; 
-  }>();
-  
-  // توفير قيمة افتراضية للـ context تحسباً لأي خطأ في التمرير
-  const storeProfile = context?.storeProfile;
-  const loading = context?.loadingStore ?? true;
+  const { user } = useAuthState();
+  const platform = user?.platform || 'salla';
+
+  // استدعاء الخطاف المباشر لبيانات المتجر من الستور المركزي
+  const { profile: storeProfile, loading, refetch: refetchStore } = useStoreProfile();
 
   if (loading) {
     return (
@@ -47,7 +41,7 @@ export function StoreSettingsPage() {
           </div>
           <div className="text-sm opacity-90">
             <p className="mb-4">حدث خطأ أثناء محاولة جلب بيانات المتجر من المنصة. يرجى التأكد من اتصالك بالإنترنت أو إعادة تسجيل الدخول.</p>
-            <Button variant="outline" size="sm" onClick={() => context?.refetchStore?.()} className="gap-2 border-destructive/30 hover:bg-destructive/10 hover:text-destructive text-destructive">
+            <Button variant="outline" size="sm" onClick={() => refetchStore?.(true)} className="gap-2 border-destructive/30 hover:bg-destructive/10 hover:text-destructive text-destructive">
               <RefreshCw className="h-4 w-4" />
               إعادة المحاولة
             </Button>
@@ -63,10 +57,10 @@ export function StoreSettingsPage() {
         <div className="flex flex-col gap-2">
           <p className="text-xl font-bold text-foreground">إعدادات المتجر</p>
           <p className="text-muted-foreground">
-            هذه البيانات تتم مزامنتها تلقائياً مع منصة <span className="font-semibold text-emerald-600">سلة</span> ولا تُحفظ في قواعد بياناتنا لضمان دقتها دائماً.
+            هذه البيانات تتم مزامنتها تلقائياً مع منصة <span className={`font-semibold ${platform === 'zid' ? 'text-purple-600' : 'text-emerald-600'}`}>{platform === 'zid' ? 'زد' : 'سلة'}</span> ولا تُحفظ في قواعد بياناتنا لضمان دقتها دائماً.
           </p>
         </div>
-        <Button variant="outline" className="gap-2 shrink-0 bg-background" onClick={() => context?.refetchStore?.(true)}>
+        <Button variant="outline" className="gap-2 shrink-0 bg-background" onClick={() => refetchStore?.(true)}>
           <RefreshCw className="h-4 w-4" />
           تحديث البيانات
         </Button>

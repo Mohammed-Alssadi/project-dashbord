@@ -1,71 +1,34 @@
 import { apiClient } from '../../../services/apiClient';
 
-// واجهة توضح شكل المنتج الموحد والديناميكي المتقدم
-export interface Product {
-  id: string | number;
-  name: string;
-  price: number;
-  currency: string;
-  salePrice: number;
-  costPrice: number;
-  sku: string;
-  imageUrl?: string;
-  quantity: number;
-  status: string; // active | hidden | out_of_stock
-  type: string;
-  category: string;
-  productUrl?: string;
-  platform: 'salla' | 'zid';
-}
-
-// واجهة معاملات الفلترة والصفحات
-export interface ProductsFilterParams {
-  page?: number;
-  per_page?: number;
-  keyword?: string;
-  status?: string;
-  category?: string;
-}
-
-// واجهة معلومات الترقيم والصفحات
-export interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-  perPage: number;
-  total: number;
-}
-
-export interface Category {
-  id: string | number;
-  name: string;
-}
-
-export interface CategoriesApiResponse {
-  success: boolean;
-  data: Category[];
-}
-
-// واجهة استجابة الـ API الموحدة
-export interface ProductsApiResponse {
-  success: boolean;
-  data: Product[];
-  pagination: PaginationInfo | null;
-}
-
 export const productService = {
   /**
-   * جلب المنتجات الموحدة مع إمكانية التصفية وتقسيم الصفحات
+   * جلب قائمة المنتجات مع دعم الفلترة والباجينيشن
+   * params يأتي جاهزاً من buildProductParams حسب المنصة
    */
-  getProducts: async (params?: ProductsFilterParams): Promise<{ products: Product[]; pagination: PaginationInfo | null }> => {
+  getProducts: async (params?: Record<string, any>): Promise<any> => {
     try {
-      const response = await apiClient.get<ProductsApiResponse>('/api/products', { params });
-      return {
-        products: response.data.data,
-        pagination: response.data.pagination
-      };
+      const response = await apiClient.get('/api/proxy/products', { params });
+      console.log('products', response.data);
+      return response.data;
     } catch (error: any) {
-      console.error('Error fetching unified products:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'فشل جلب المنتجات من المنصة');
+      const errMsg = error.response?.data?.message;
+      const message = typeof errMsg === 'object'
+        ? (errMsg?.description || errMsg?.name || 'حدث خطأ في الاتصال بالمنصة')
+        : (typeof errMsg === 'string' ? errMsg : 'فشل جلب المنتجات من المنصة');
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * جلب تفاصيل منتج واحد بالـ ID
+   */
+  getProductById: async (productId: string | number): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/proxy/products/${productId}`);
+      console.log('product', response.data);
+      return response.data;
+    } catch (error: any) {
+      throw new Error('فشل جلب تفاصيل المنتج');
     }
   },
 };

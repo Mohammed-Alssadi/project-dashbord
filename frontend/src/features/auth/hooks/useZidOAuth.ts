@@ -11,6 +11,7 @@ export const useZidOAuth = () => {
       const res = await apiClient.get('/auth/zid/redirect');
       
       if (res.data.success && res.data.oauthUrl) {
+        toast.loading("جاري تحويلك لصفحة زد الرسمية للمصادقة...");
         window.location.href = res.data.oauthUrl;
       } else {
         toast.error(res.data.message || 'حدث خطأ أثناء تهيئة الربط مع زد');

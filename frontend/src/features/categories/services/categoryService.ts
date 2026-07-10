@@ -1,67 +1,32 @@
 import { apiClient } from '../../../services/apiClient';
 
-export interface Category {
-  id: number;
-  name: string;
-  imageUrl: string;
-  customerUrl: string;
-  parentId: number;
-  sortOrder: number;
-  status: 'active' | 'hidden' | string;
-  hasHiddenProducts: boolean;
-  updatedAt: string;
-  subCategories: Category[];
-  platform: string;
-  seo?: {
-    title: string | null;
-    description: string | null;
-    url: string | null;
-  };
-  metadata?: {
-    title: string | null;
-    description: string | null;
-    url: string | null;
-  };
-  showIn?: {
-    app: boolean;
-    salla_points: boolean;
-  };
-}
-
-export interface PaginationInfo {
-  currentPage: number;
-  totalPages: number;
-  perPage: number;
-  total: number;
-}
-
-export interface CategoriesFilterParams {
-  page?: number;
-  per_page?: number;
-  keyword?: string;
-  status?: string;
-}
-
-export interface CategoriesApiResponse {
-  success: boolean;
-  data: Category[];
-  pagination: PaginationInfo | null;
-}
-
 export const categoryService = {
-  /**
-   * جلب تصنيفات المتجر مع التصفية والتقسيم
-   */
-  getCategories: async (params?: CategoriesFilterParams): Promise<{ categories: Category[]; pagination: PaginationInfo | null }> => {
-    try {
-      const response = await apiClient.get<CategoriesApiResponse>('/api/categories', { params });
-      return {
-        categories: response.data.data,
-        pagination: response.data.pagination
-      };
+  getCategories: async (params?: Record<string, any>): Promise<any> => {
+  try {
+      const response = await apiClient.get('/api/proxy/categories', { params });
+      console.log('Fetched categories :', response.data);
+      return response.data;
     } catch (error: any) {
-      console.error('Error fetching categories from platform:', error.response?.data || error.message);
-      throw new Error(error.response?.data?.message || 'فشل جلب التصنيفات من المنصة');
+      console.error('Error fetching categories:', error.response?.data || error.message);
+      let errMsg = error.response?.data?.message;
+      if (typeof errMsg === 'object' && errMsg !== null) {
+         errMsg = errMsg.description || errMsg.name || 'حدث خطأ في الاتصال بالمنصة';
+      }
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'فشل جلب التصنيفات من المنصة');
+    }
+  },
+  getCategoryDetail: async (id: string | number): Promise<any> => {
+    try {
+      const response = await apiClient.get(`/api/proxy/categories/${id}`);
+      console.log('Fetched category detail:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error(`Error fetching category detail ${id}:`, error.response?.data || error.message);
+      let errMsg = error.response?.data?.message;
+      if (typeof errMsg === 'object' && errMsg !== null) {
+         errMsg = errMsg.description || errMsg.name || 'حدث خطأ في الاتصال بالمنصة';
+      }
+      throw new Error(typeof errMsg === 'string' ? errMsg : 'فشل جلب تفاصيل القسم من المنصة');
     }
   }
 };

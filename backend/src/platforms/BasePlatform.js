@@ -55,25 +55,4 @@ export class BasePlatform {
     throw new Error('Method fetchStoreProfile must be implemented');
   }
 
-  /**
-   * جلب المنتجات حية ومباشرة من الـ API للمنصة
-   * @param {string} accessToken
-   * @param {string} managerToken
-   * @param {object} queryParams
-   * @returns {Promise<Array>}
-   */
-  async fetchProducts(accessToken, managerToken, queryParams) {
-    throw new Error('Method fetchProducts must be implemented');
-  }
-
-  /**
-   * جلب الأقسام حية ومباشرة من الـ API للمنصة
-   * @param {string} accessToken
-   * @param {string} managerToken
-   * @param {object} queryParams
-   * @returns {Promise<Array>}
-   */
-  async fetchCategories(accessToken, managerToken, queryParams) {
-    throw new Error('Method fetchCategories must be implemented');
-  }
 }

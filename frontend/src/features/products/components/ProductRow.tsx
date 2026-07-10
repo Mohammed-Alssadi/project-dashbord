@@ -1,122 +1,136 @@
 import { TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Package, Edit, Trash, ExternalLink } from "lucide-react"
-import type { Product } from "../services/productService"
+import { Package, ExternalLink, Eye } from "lucide-react"
+import { type UnifiedProduct } from "../services/productAdapter"
+import { Link } from "react-router-dom"
 
 interface ProductRowProps {
-  product: Product;
+  product: UnifiedProduct;
 }
 
 /**
- * صف منتج يعرض البيانات الخام كأعمدة منفصلة دون إضافات أو ترجمات مخصصة
+ * صف منتج — يعرض البيانات الموحدة التفاعلية
  */
 export function ProductRow({ product }: ProductRowProps) {
+  const hasDiscount = product.salePrice !== null && product.salePrice < product.price;
+
+
+
   return (
-    <TableRow className="hover:bg-muted/30 transition-colors">
+    <TableRow className="hover:bg-muted/30 transition-colors group">
+
       {/* 1. الصورة */}
-      <TableCell className="w-[80px]">
+      <TableCell className="w-[60px] py-2">
         {product.imageUrl ? (
-          <img 
-            src={product.imageUrl} 
-            alt={product.name} 
-            className="size-10 rounded-lg border border-border/80 object-cover bg-background shrink-0 shadow-sm"
+          <img
+            src={product.imageUrl}
+            alt={product.name}
+            className="size-10 rounded-lg border border-border/60 object-cover bg-muted/30 shrink-0"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
           <div className="size-10 rounded-lg border border-border bg-muted/40 flex items-center justify-center text-muted-foreground/60 shrink-0">
-            <Package className="size-4.5" />
+            <Package className="size-4" />
           </div>
         )}
       </TableCell>
 
-      {/* 2. المنتج والـ SKU */}
-      <TableCell className="text-right font-medium">
-        <div className="flex flex-col text-right">
-          <span className="text-sm font-bold text-foreground line-clamp-1 max-w-[280px]">
+      {/* 2. الاسم والـ SKU */}
+      <TableCell className="text-right py-2">
+        <div className="flex flex-col gap-0.5">
+          <Link
+            to={`/dashboard/products/${product.id}`}
+            className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 max-w-[260px] hover:underline"
+          >
             {product.name}
-          </span>
-          <span className="text-[10px] text-muted-foreground mt-0.5 font-mono" dir="ltr">
-            SKU: {product.sku || 'N/A'}
+          </Link>
+          <span className="text-[10px] text-muted-foreground font-mono" dir="ltr">
+            {product.sku || '—'}
           </span>
         </div>
       </TableCell>
 
       {/* 3. السعر */}
-      <TableCell className="text-right">
-        <span className="font-bold text-sm text-foreground">
-          {product.price} {product.currency}
-        </span>
+      <TableCell className="text-right py-2">
+        <div className="flex flex-col gap-0.5">
+          {hasDiscount ? (
+            <>
+              <span className="text-sm font-bold text-foreground">
+                {product.salePrice} {product.currency}
+              </span>
+              <span className="text-[10px] text-muted-foreground line-through">
+                {product.price} {product.currency}
+              </span>
+            </>
+          ) : (
+            <span className="text-sm font-bold text-foreground">
+              {product.price} {product.currency}
+            </span>
+          )}
+        </div>
       </TableCell>
 
-      {/* 4. التكلفة */}
-      <TableCell className="text-right">
-        <span className="text-sm text-muted-foreground font-medium">
-          {product.costPrice} {product.currency}
-        </span>
-      </TableCell>
-
-      {/* 5. الكمية */}
-      <TableCell className="text-right">
-        <span className="text-sm text-foreground/80 font-semibold">
+      {/* 4. الكمية */}
+      <TableCell className="text-right py-2">
+        <span className={`text-sm font-semibold ${product.quantity === 0 ? 'text-destructive' : 'text-foreground/80'}`}>
           {product.quantity}
         </span>
       </TableCell>
 
-      {/* 6. القسم (عمود منفصل) */}
-      <TableCell className="text-right">
-        <span className="text-xs text-muted-foreground font-medium">
-          {product.category || 'N/A'}
+      {/* 5. التصنيف */}
+      <TableCell className="text-right py-2">
+        <span className="text-xs text-muted-foreground">
+          {product.category || 'غير مصنف'}
         </span>
       </TableCell>
 
-      {/* 7. النوع (عمود منفصل) */}
-      <TableCell className="text-right font-mono text-xs text-muted-foreground/80">
-        {product.type || 'N/A'}
+      {/* 6. النوع */}
+      <TableCell className="text-right py-2">
+        <span className="text-xs text-muted-foreground/70 font-mono">
+          {product.type || 'product'}
+        </span>
       </TableCell>
 
-      {/* 8. الحالة */}
-      <TableCell className="text-right">
-        <Badge variant="outline" className="text-[10px] font-mono px-2 py-0.5 rounded-md lowercase">
-          {product.status || 'N/A'}
+      {/* 7. الحالة */}
+      <TableCell className="text-right py-2">
+        <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-md font-mono border-muted-foreground/30 text-muted-foreground bg-muted/5">
+          {product.status}
         </Badge>
       </TableCell>
 
-      {/* 9. العمليات */}
-      <TableCell className="text-left w-[130px]">
+      {/* 8. العمليات */}
+      <TableCell className="text-left w-[120px] py-2">
         <div className="flex items-center justify-end gap-1">
           {product.productUrl && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 rounded-xl hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-lg hover:bg-muted/80 text-muted-foreground hover:text-foreground"
               title="عرض في المتجر"
               asChild
             >
               <a href={product.productUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="size-4" />
+                <ExternalLink className="size-3.5" />
               </a>
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-lg hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+            title="عرض التفاصيل"
+            asChild
+          >
+            <Link to={`/dashboard/products/${product.id}`}>
+              <Eye className="size-3.5" />
+            </Link>
+          </Button>
 
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors shrink-0"
-            title="تعديل المنتج"
-          >
-            <Edit className="size-4" />
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 rounded-xl hover:bg-destructive/5 hover:text-destructive transition-colors shrink-0"
-            title="حذف المنتج"
-          >
-            <Trash className="size-4" />
-          </Button>
         </div>
       </TableCell>
+
     </TableRow>
   );
 }
+

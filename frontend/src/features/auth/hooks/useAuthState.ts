@@ -1,34 +1,20 @@
-import { useEffect, useState } from 'react'
-import { apiClient } from '@/services/apiClient'
-
-import { type AuthUser } from '../services/authService'
+import { useEffect } from 'react'
+import { useAuthStore } from '../store/authStore'
 
 /**
- * useAuthState — يجلب حالة المستخدم من الـ backend عبر الكوكي
- * لا يوجد أي تعامل مع localStorage
+ * useAuthState — يجلب حالة المستخدم من متجر Zustand المشترك
+ * لمنع تكرار طلبات الشبكة بالتوازي
  */
 export function useAuthState() {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  const fetchUser = async () => {
-    try {
-      const res = await apiClient.get<{ success: boolean; data: AuthUser }>('/api/auth/me')
-      setUser(res.data.success ? res.data.data : null)
-    } catch {
-      setUser(null)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const user = useAuthStore((s) => s.user)
+  const loading = useAuthStore((s) => s.loading)
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const fetchUser = useAuthStore((s) => s.fetchUser)
 
   useEffect(() => {
     fetchUser()
+  }, [fetchUser])
 
-    // الاستماع لحدث تغيير المصادقة (logout)
-    window.addEventListener('auth_change', fetchUser)
-    return () => window.removeEventListener('auth_change', fetchUser)
-  }, [])
-
-  return { user, isLoggedIn: !!user, loading }
+  return { user, isLoggedIn, loading }
 }
+

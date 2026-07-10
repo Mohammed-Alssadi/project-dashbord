@@ -1,63 +1,51 @@
 import { create } from 'zustand';
 import { categoryService } from '../services/categoryService';
-import type { Category, PaginationInfo } from '../services/categoryService';
+import { adaptCategoriesList, type UnifiedCategory } from '../services/categoryAdapter';
+import { buildProductParams, extractPagination, type PaginationMeta } from '@/features/products/services/productQueryAdapter';
 
 interface CategoryState {
-  categories: Category[];
+  categories: UnifiedCategory[];
+  pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
-  page: number;
-  searchTerm: string;
-  keyword: string;
-  status: string;
-  paginationInfo: PaginationInfo | null;
-
-  setPage: (page: number) => void;
-  setSearchTerm: (term: string) => void;
-  setKeyword: (keyword: string) => void;
-  setStatus: (status: string) => void;
-  fetchCategories: () => Promise<void>;
+  fetchCategories: (page?: number) => Promise<void>;
+  goToPage: (page: number) => void;
 }
+
+const DEFAULT_PAGINATION: PaginationMeta = {
+  currentPage: 1,
+  totalPages: 1,
+  totalCount: 0,
+  perPage: 15,
+  hasNext: false,
+  hasPrev: false,
+};
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
   categories: [],
+  pagination: DEFAULT_PAGINATION,
   loading: true,
   error: null,
-  page: 1,
-  searchTerm: "",
-  keyword: "",
-  status: "الكل",
-  paginationInfo: null,
 
-  setPage: (page) => set({ page }),
-  setSearchTerm: (searchTerm) => set({ searchTerm }),
-  setKeyword: (keyword) => set({ keyword, page: 1 }),
-  setStatus: (status) => set({ status, page: 1 }),
-
-  fetchCategories: async () => {
+  fetchCategories: async (page = 1) => {
     try {
       set({ loading: true, error: null });
-      const { page, keyword, status } = get();
-
-      // تجهيز المعاملات للسيرفر
-      const apiStatus = status === "الكل" ? undefined : status;
-      const apiKeyword = keyword.trim() === "" ? undefined : keyword.trim();
-
-      const result = await categoryService.getCategories({
-        page,
-        per_page: 10,
-        keyword: apiKeyword,
-        status: apiStatus
-      });
-
-      set({
-        categories: result.categories || [],
-        paginationInfo: result.pagination,
-        loading: false
-      });
+      
+      const params = buildProductParams({ page, pageSize: 15 });
+      const rawResponse = await categoryService.getCategories(params);
+      
+      const unifiedCategories = adaptCategoriesList(rawResponse);
+      const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
+      
+      set({ categories: unifiedCategories, pagination, loading: false });
     } catch (err: any) {
       console.error('Failed to fetch categories in store:', err);
       set({ error: err.message || 'فشل جلب التصنيفات', loading: false });
     }
+  },
+
+  goToPage: (page) => {
+    get().fetchCategories(page);
   }
 }));
+

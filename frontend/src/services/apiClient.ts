@@ -27,13 +27,23 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     // تجاهل أخطاء 401 — تحدث بشكل طبيعي عند عدم وجود جلسة أو بعد تسجيل الخروج
-    // useAuthState يتعامل معها بصمت عبر try/catch الخاص به
     if (error.response?.status === 401) {
       return Promise.reject(error);
     }
-    const backendMessage = error.response?.data?.message;
-    const defaultErrorMessage = 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً';
-    toast.error(backendMessage || defaultErrorMessage);
+
+    const method = error.config?.method?.toUpperCase();
+    const isMutation = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+
+    // حصر التنبيه التلقائي بالـ Toast لعمليات الإدخال والتعديل والحذف فقط
+    if (isMutation) {
+      let backendMessage = error.response?.data?.message;
+      if (typeof backendMessage === 'object' && backendMessage !== null) {
+        backendMessage = backendMessage.description || backendMessage.name || JSON.stringify(backendMessage);
+      }
+      const defaultErrorMessage = 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً';
+      toast.error(typeof backendMessage === 'string' ? backendMessage : defaultErrorMessage);
+    }
+
     return Promise.reject(error);
   }
 );
