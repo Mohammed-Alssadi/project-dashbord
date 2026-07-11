@@ -1,15 +1,32 @@
 import { create } from 'zustand';
 import { categoryService } from '../services/categoryService';
-import { adaptCategoriesList, type UnifiedCategory } from '../services/categoryAdapter';
-import { buildProductParams, extractPagination, type PaginationMeta } from '@/features/products/services/productQueryAdapter';
+import { 
+  parseSallaCategoryList, 
+  parseZidCategoryList,
+  parseSallaCategoryDetails,
+  parseZidCategoryDetails
+} from '../adapters/categoryAdapter';
+import type { PlatformCategory } from '../types/category';
+import { 
+  buildCategoryParams, 
+  extractPagination, 
+  type PaginationMeta 
+} from '../adapters/categoryQueryAdapter';
 
 interface CategoryState {
-  categories: UnifiedCategory[];
+  categories: PlatformCategory[];
   pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
-  fetchCategories: (page?: number) => Promise<void>;
-  goToPage: (page: number) => void;
+  
+  selectedCategory: PlatformCategory | null;
+  loadingDetail: boolean;
+  errorDetail: string | null;
+
+  fetchCategories: (platform: 'salla' | 'zid', page?: number) => Promise<void>;
+  goToPage: (platform: 'salla' | 'zid', page: number) => void;
+  fetchCategoryById: (platform: 'salla' | 'zid', categoryId: string | number) => Promise<void>;
+  clearSelectedCategory: () => void;
 }
 
 const DEFAULT_PAGINATION: PaginationMeta = {
@@ -26,26 +43,61 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
   pagination: DEFAULT_PAGINATION,
   loading: true,
   error: null,
+  
+  selectedCategory: null,
+  loadingDetail: false,
+  errorDetail: null,
 
-  fetchCategories: async (page = 1) => {
+  fetchCategories: async (platform, page = 1) => {
     try {
       set({ loading: true, error: null });
-      
-      const params = buildProductParams({ page, pageSize: 15 });
+
+      const params = buildCategoryParams({ page, pageSize: 15 });
       const rawResponse = await categoryService.getCategories(params);
-      
-      const unifiedCategories = adaptCategoriesList(rawResponse);
+
+      let parsedCategories: PlatformCategory[] = [];
+      if (platform === 'salla') {
+        parsedCategories = parseSallaCategoryList(rawResponse);
+      } else {
+        parsedCategories = parseZidCategoryList(rawResponse);
+      }
+
       const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
-      
-      set({ categories: unifiedCategories, pagination, loading: false });
+
+      set({ 
+        categories: parsedCategories, 
+        pagination, 
+        loading: false 
+      });
     } catch (err: any) {
-      console.error('Failed to fetch categories in store:', err);
-      set({ error: err.message || 'فشل جلب التصنيفات', loading: false });
+      set({ error: err.message || 'فشل جلب الأقسام', loading: false });
     }
   },
 
-  goToPage: (page) => {
-    get().fetchCategories(page);
+  goToPage: (platform, page) => {
+    get().fetchCategories(platform, page);
+  },
+
+  fetchCategoryById: async (platform, categoryId) => {
+    try {
+      set({ loadingDetail: true, errorDetail: null, selectedCategory: null });
+      
+      const rawResponse = await categoryService.getCategoryDetail(categoryId);
+      
+      let parsedDetails: PlatformCategory | null = null;
+      if (platform === 'salla') {
+        parsedDetails = parseSallaCategoryDetails(rawResponse);
+      } else {
+        parsedDetails = parseZidCategoryDetails(rawResponse);
+      }
+
+      set({ selectedCategory: parsedDetails, loadingDetail: false });
+    } catch (err: any) {
+      set({ errorDetail: err.message || 'فشل جلب تفاصيل القسم', loadingDetail: false });
+    }
+  },
+
+  clearSelectedCategory: () => {
+    set({ selectedCategory: null, errorDetail: null });
   }
 }));
-

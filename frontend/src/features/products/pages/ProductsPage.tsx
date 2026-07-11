@@ -1,5 +1,9 @@
-import { useProducts } from "../hooks/useProducts"
-import { ProductRow } from "../components/ProductRow"
+import { useEffect } from "react"
+import { useSearchParams } from "react-router-dom"
+import { useProductStore } from "../store/productStore"
+import { useAuthStore } from "@/features/auth/store/authStore"
+import { SallaProductRow } from "../components/SallaProductRow"
+import { ZidProductRow } from "../components/ZidProductRow"
 import { ProductsPagination } from "../components/ProductsPagination"
 import { ProductsSkeleton } from "../components/ProductsSkeleton"
 import { Button } from "@/components/ui/button"
@@ -12,9 +16,27 @@ import {
   TableCell
 } from "@/components/ui/table"
 import { Loader2, RefreshCw, Package, AlertCircle } from "lucide-react"
+import type { SallaProductItem, ZidProductItem } from "../types/product"
 
 export function ProductsPage() {
-  const { products, pagination, loading, error, goToPage, refresh } = useProducts()
+  const { products, pagination, loading, error, fetchProducts } = useProductStore()
+  const { user } = useAuthStore()
+  const platform = (user?.platform as 'salla' | 'zid') || 'zid'
+  
+  const [searchParams, setSearchParams] = useSearchParams()
+  const pageParam = parseInt(searchParams.get("page") || "1", 10)
+
+  useEffect(() => {
+    fetchProducts(platform, pageParam);
+  }, [fetchProducts, platform, pageParam]);
+
+  const handleRefresh = () => {
+    fetchProducts(platform, pageParam);
+  };
+
+  const handlePageChange = (page: number) => {
+    setSearchParams({ page: page.toString() });
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in font-sans text-right" dir="rtl">
@@ -36,10 +58,8 @@ export function ProductsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-
-
           <Button
-            onClick={refresh}
+            onClick={handleRefresh}
             disabled={loading}
             variant="outline"
             size="sm"
@@ -66,52 +86,59 @@ export function ProductsPage() {
           <TableHeader className="bg-muted/20">
             <TableRow>
               <TableHead className="text-right text-xs font-bold text-muted-foreground py-3 w-[60px]">الصورة</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">المنتج</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">اسم المنتج</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">رمز SKU</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الحالي</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الأساسي</TableHead>
               <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الكمية</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النوع</TableHead>
+              {platform === 'zid' ? (
+                <>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الفئة (Class)</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النوع (Type)</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">قنوات البيع</TableHead>
+                </>
+              )}
               <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
               <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {/* حالة التحميل الأولية */}
-            {loading && products.length === 0 && <ProductsSkeleton rows={8} />}
-
-            {/* لا يوجد منتجات */}
-            {!loading && products.length === 0 && (
+            {loading ? (
+              <ProductsSkeleton rows={8} platform={platform} />
+            ) : products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-20 text-center">
+                <TableCell colSpan={10} className="py-20 text-center">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <Package className="size-10 opacity-25" />
                     <span className="text-sm">لا توجد منتجات متوفرة بالمتجر حالياً</span>
                   </div>
                 </TableCell>
               </TableRow>
+            ) : (
+              products.map((product) => 
+                platform === 'zid' ? (
+                  <ZidProductRow key={product.id} product={product as ZidProductItem} />
+                ) : (
+                  <SallaProductRow key={product.id} product={product as SallaProductItem} />
+                )
+              )
             )}
-
-            {/* صفوف المنتجات */}
-            {products.map((product) => (
-              <ProductRow 
-                key={product.id} 
-                product={product} 
-              />
-            ))}
           </TableBody>
         </Table>
 
         {/* الباجينيشن — أسفل الجدول */}
         <ProductsPagination
           pagination={pagination}
-          onPageChange={goToPage}
+          onPageChange={handlePageChange}
           loading={loading}
         />
       </div>
 
-
     </div>
   )
 }
-

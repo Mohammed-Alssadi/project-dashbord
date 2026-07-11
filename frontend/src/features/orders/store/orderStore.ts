@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { UnifiedOrder, UnifiedOrderDetails } from '../services/orderAdapter';
-import { adaptSallaOrder, adaptZidOrder, adaptSallaOrderDetails, adaptZidOrderDetails } from '../services/orderAdapter';
+import type { UnifiedOrder, UnifiedOrderDetails } from '../adapters/orderAdapter';
+import { adaptSallaOrder, adaptZidOrder, adaptSallaOrderDetails, adaptZidOrderDetails } from '../adapters/orderAdapter';
 import { orderService } from '../services/orderService';
 
 interface PaginationMeta {

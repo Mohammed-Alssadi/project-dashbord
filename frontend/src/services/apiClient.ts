@@ -10,6 +10,11 @@ const baseApiUrl = import.meta.env.VITE_API_URL || '';
 export const apiClient = axios.create({
   baseURL: baseApiUrl,
   withCredentials: true,
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  }
 });
 
 // معالجة الاستجابات عبر interceptor

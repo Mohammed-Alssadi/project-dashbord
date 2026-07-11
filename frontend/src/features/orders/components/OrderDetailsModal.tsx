@@ -5,7 +5,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import type { UnifiedOrderDetails } from "../services/orderAdapter";
+import type { UnifiedOrderDetails, UnifiedOrderItem } from "../adapters/orderAdapter";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -32,7 +32,7 @@ export function OrderDetailsModal({ order, open, onOpenChange, loading }: OrderD
   if (!order && !loading) return null;
 
   // Determine if we should show the Price column (hide it for Salla if all items have 0 total)
-  const showPriceColumn = order ? !(order.platform === 'salla' && order.items.every(i => i.total === 0)) : true;
+  const showPriceColumn = order ? !(order.platform === 'salla' && order.items.every((i: UnifiedOrderItem) => i.total === 0)) : true;
   const isSalla = order?.platform === 'salla';
 
   return (
@@ -214,7 +214,7 @@ export function OrderDetailsModal({ order, open, onOpenChange, loading }: OrderD
                       </TableCell>
                     </TableRow>
                   )}
-                  {order.items.map((item) => (
+                  {order.items.map((item: UnifiedOrderItem) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium text-sm flex items-center gap-3 py-3">
                         {item.thumbnail ? (

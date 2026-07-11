@@ -34,6 +34,9 @@ const LoginPage = lazy(() =>
 const CustomersPage = lazy(() =>
   import("@/features/customers").then((module) => ({ default: module.CustomersPage }))
 )
+const CustomerDetailPage = lazy(() =>
+  import("@/features/customers").then((module) => ({ default: module.CustomerDetailPage }))
+)
 const OrdersPage = lazy(() =>
   import("@/features/orders").then((module) => ({ default: module.OrdersPage }))
 )
@@ -145,6 +148,14 @@ const router = createBrowserRouter([
             element: (
               <Suspense fallback={<PageLoader />}>
                 <CustomersPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "/dashboard/customers/:id",
+            element: (
+              <Suspense fallback={<PageLoader />}>
+                <CustomerDetailPage />
               </Suspense>
             ),
           },

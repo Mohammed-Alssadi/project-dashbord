@@ -1,26 +1,32 @@
 import { create } from 'zustand';
 import { customerService } from '../services/customerService';
-import { adaptCustomer, adaptCustomersList, type UnifiedCustomer } from '../services/customerAdapter';
-
-export interface PaginationMeta {
-  currentPage: number;
-  totalPages: number;
-  totalCount: number;
-  perPage: number;
-}
+import { 
+  parseSallaCustomerList, 
+  parseZidCustomerList,
+  parseSallaCustomerDetails,
+  parseZidCustomerDetails
+} from '../adapters/customerAdapter';
+import type { PlatformCustomer } from '../types/customer';
+import { 
+  buildCustomerParams, 
+  extractPagination, 
+  type PaginationMeta 
+} from '../adapters/customerQueryAdapter';
 
 interface CustomerState {
-  customers: UnifiedCustomer[];
+  customers: PlatformCustomer[];
   pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
-  selectedCustomer: UnifiedCustomer | null;
+  
+  selectedCustomer: PlatformCustomer | null;
   loadingDetail: boolean;
   errorDetail: string | null;
 
-  fetchCustomers: (page?: number) => Promise<void>;
-  goToPage: (page: number) => void;
-  fetchCustomerById: (customerId: string | number, isZid: boolean) => Promise<void>;
+  fetchCustomers: (platform: 'salla' | 'zid', page?: number) => Promise<void>;
+  goToPage: (platform: 'salla' | 'zid', page: number) => void;
+  fetchCustomerById: (platform: 'salla' | 'zid', customerId: string | number) => Promise<void>;
+  clearSelectedCustomer: () => void;
 }
 
 const DEFAULT_PAGINATION: PaginationMeta = {
@@ -28,6 +34,8 @@ const DEFAULT_PAGINATION: PaginationMeta = {
   totalPages: 1,
   totalCount: 0,
   perPage: 15,
+  hasNext: false,
+  hasPrev: false,
 };
 
 export const useCustomerStore = create<CustomerState>((set, get) => ({
@@ -35,57 +43,62 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
   pagination: DEFAULT_PAGINATION,
   loading: true,
   error: null,
+  
   selectedCustomer: null,
   loadingDetail: false,
   errorDetail: null,
 
-  fetchCustomers: async (page = 1) => {
+  fetchCustomers: async (platform, page = 1) => {
     try {
       set({ loading: true, error: null });
 
-      const params = {
-        page,
-        page_size: 15,
-        per_page: 15,
-      };
+      const params = buildCustomerParams({ page, pageSize: 15 });
+      const rawResponse = await customerService.getCustomers(params);
 
-      const response = await customerService.getCustomers(params);
+      let parsedCustomers: PlatformCustomer[] = [];
+      if (platform === 'salla') {
+        parsedCustomers = parseSallaCustomerList(rawResponse);
+      } else {
+        parsedCustomers = parseZidCustomerList(rawResponse);
+      }
 
-      // استخراج القوائم والباجينيشن باستخدام الموائم
-      const list = response?.results || response?.data || response || [];
-      const unifiedCustomers = adaptCustomersList(response);
-      const totalCount = response?.count || response?.pagination?.total || (Array.isArray(list) ? list.length : 0);
-      const totalPages = response?.pagination?.totalPages || Math.ceil(totalCount / 15) || 1;
+      const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
 
-      set({
-        customers: unifiedCustomers,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalCount,
-          perPage: 15,
-        },
-        loading: false,
+      set({ 
+        customers: parsedCustomers, 
+        pagination, 
+        loading: false 
       });
     } catch (err: any) {
       set({ error: err.message || 'فشل جلب بيانات العملاء', loading: false });
     }
   },
 
-  goToPage: (page) => {
-    get().fetchCustomers(page);
+  goToPage: (platform, page) => {
+    get().fetchCustomers(platform, page);
   },
 
-  fetchCustomerById: async (customerId, isZid) => {
+  fetchCustomerById: async (platform, customerId) => {
     try {
       set({ loadingDetail: true, errorDetail: null, selectedCustomer: null });
-      const response = await customerService.getCustomerById(customerId, isZid);
-      const detail = response?.customer || response?.data || response;
-      const adapted = adaptCustomer(detail);
-      set({ selectedCustomer: adapted, loadingDetail: false });
+      
+      const isZid = platform === 'zid';
+      const rawResponse = await customerService.getCustomerById(customerId, isZid);
+      
+      let parsedDetails: PlatformCustomer | null = null;
+      if (platform === 'salla') {
+        parsedDetails = parseSallaCustomerDetails(rawResponse);
+      } else {
+        parsedDetails = parseZidCustomerDetails(rawResponse);
+      }
+
+      set({ selectedCustomer: parsedDetails, loadingDetail: false });
     } catch (err: any) {
       set({ errorDetail: err.message || 'فشل جلب تفاصيل العميل', loadingDetail: false });
     }
   },
-}));
 
+  clearSelectedCustomer: () => {
+    set({ selectedCustomer: null, errorDetail: null });
+  }
+}));

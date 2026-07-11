@@ -5,7 +5,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import type { UnifiedOrderDetails } from "../services/orderAdapter";
+import type { UnifiedOrderDetails, UnifiedOrderItem } from "../adapters/orderAdapter";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -126,7 +126,7 @@ export function OrderDetailsDrawer({ order, open, onOpenChange }: OrderDetailsDr
                       </TableCell>
                     </TableRow>
                   )}
-                  {order.items.map((item) => (
+                  {order.items.map((item: UnifiedOrderItem) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium text-sm flex items-center gap-3">
                         {item.thumbnail ? (

@@ -1,6 +1,9 @@
-import { useCategories } from "../hooks/useCategories"
-import { useAuthState } from "@/features/auth/hooks/useAuthState"
-import { CategoryRow } from "../components/CategoryRow"
+import { useEffect } from "react"
+import { useSearchParams } from "react-router-dom"
+import { useCategoryStore } from "../store/categoryStore"
+import { useAuthStore } from "@/features/auth/store/authStore"
+import { SallaCategoryRow } from "../components/SallaCategoryRow"
+import { ZidCategoryRow } from "../components/ZidCategoryRow"
 import { CategoriesSkeleton } from "../components/CategoriesSkeleton"
 import { CategoriesPagination } from "../components/CategoriesPagination"
 import { Button } from "@/components/ui/button"
@@ -15,15 +18,33 @@ import {
 import { 
   Loader2, 
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Folder
 } from "lucide-react"
+import type { SallaCategoryItem, ZidCategoryItem } from "../types/category"
 
 export function CategoriesPage() {
-  const { categories, pagination, loading, error, goToPage, refresh } = useCategories()
-  const { user } = useAuthState()
+  const { categories, pagination, loading, error, fetchCategories } = useCategoryStore()
+  const { user } = useAuthStore()
   
-  const isZid = user?.platform === 'zid'
-  const isSalla = user?.platform === 'salla'
+  const platform = (user?.platform as 'salla' | 'zid') || 'zid'
+  const isZid = platform === 'zid'
+  const isSalla = platform === 'salla'
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const pageParam = parseInt(searchParams.get("page") || "1", 10)
+
+  useEffect(() => {
+    fetchCategories(platform, pageParam);
+  }, [fetchCategories, platform, pageParam]);
+
+  const handleRefresh = () => {
+    fetchCategories(platform, pageParam);
+  };
+
+  const handlePageChange = (page: number) => {
+    setSearchParams({ page: page.toString() });
+  };
 
   return (
     <div className="flex flex-col gap-6 w-full animate-fade-in font-sans text-right" dir="rtl">
@@ -39,7 +60,7 @@ export function CategoriesPage() {
         </div>
         
         <Button 
-          onClick={refresh} 
+          onClick={handleRefresh} 
           disabled={loading}
           variant="outline"
           size="sm"
@@ -63,31 +84,46 @@ export function CategoriesPage() {
         <Table>
           <TableHeader className="bg-muted/20">
             <TableRow>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3 w-[80px]">الصورة</TableHead>
+              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3 w-[60px]">الصورة</TableHead>
               <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">القسم</TableHead>
               {isZid && (
-                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">عدد المنتجات</TableHead>
+                <>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الرابط (Slug)</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">عدد المنتجات</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">فروع</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النشر</TableHead>
+                </>
               )}
               {isSalla && (
-                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الترتيب</TableHead>
+                <>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الترتيب</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">طريقة الفرز</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
+                </>
               )}
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
-              <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[150px]">العمليات</TableHead>
+              <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
             </TableRow>
           </TableHeader>
           
           <TableBody>
-            {loading && categories.length === 0 ? (
-              <CategoriesSkeleton />
+            {loading ? (
+              <CategoriesSkeleton platform={platform} />
             ) : categories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
-                  لا توجد تصنيفات أو أقسام حالياً في هذا المتجر.
+                <TableCell colSpan={isZid ? 7 : 6} className="text-center py-8 text-sm text-muted-foreground h-48">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <Folder className="size-8 text-muted-foreground/30" />
+                    لا توجد تصنيفات أو أقسام حالياً في هذا المتجر.
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               categories.map((category) => (
-                <CategoryRow key={category.id} category={category} />
+                isSalla ? (
+                  <SallaCategoryRow key={category.id} category={category as SallaCategoryItem} />
+                ) : (
+                  <ZidCategoryRow key={category.id} category={category as ZidCategoryItem} />
+                )
               ))
             )}
           </TableBody>
@@ -95,11 +131,10 @@ export function CategoriesPage() {
 
         <CategoriesPagination
           pagination={pagination}
-          onPageChange={goToPage}
+          onPageChange={handlePageChange}
           loading={loading}
         />
       </div>
     </div>
   )
 }
-

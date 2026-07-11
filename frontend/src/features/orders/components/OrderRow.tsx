@@ -1,5 +1,5 @@
 import { TableRow, TableCell } from "@/components/ui/table";
-import type { UnifiedOrder } from "../services/orderAdapter";
+import type { UnifiedOrder } from "../adapters/orderAdapter";
 import { OrderStatusBadge } from "./OrderStatusBadge";
 import { Button } from "@/components/ui/button";
 import { Eye, CreditCard, Clock, AlertTriangle } from "lucide-react";

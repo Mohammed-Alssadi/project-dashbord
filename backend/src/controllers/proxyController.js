@@ -145,6 +145,11 @@ export const dynamicProxy = async (req, res) => {
     delete responseHeaders['transfer-encoding'];
     delete responseHeaders['content-encoding'];
 
+    // منع المتصفح من كاش البيانات (مهم عند تغيير المتاجر)
+    responseHeaders['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+    responseHeaders['Pragma'] = 'no-cache';
+    responseHeaders['Expires'] = '0';
+
     // إعداد حالة الرد والترويسات للفرونت إند
     res.status(response.status).set(responseHeaders);
 

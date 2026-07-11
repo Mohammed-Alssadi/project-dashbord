@@ -3,6 +3,7 @@ import { useOrderStore } from "../store/orderStore";
 import { useAuthState } from "@/features/auth/hooks/useAuthState";
 import { OrderRow } from "../components/OrderRow";
 import { OrdersPagination } from "../components/OrdersPagination";
+import { OrdersSkeleton } from "../components/OrdersSkeleton";
 import { OrderDetailsModal } from "../components/OrderDetailsModal";
 import { Button } from "@/components/ui/button";
 import {
@@ -111,13 +112,7 @@ export function OrdersPage() {
           <TableBody>
             {/* حالة التحميل */}
             {loadingList && orders.length === 0 && (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={7} className="py-4">
-                    <div className="h-6 w-full bg-muted/50 rounded-md animate-pulse" />
-                  </TableCell>
-                </TableRow>
-              ))
+              <OrdersSkeleton />
             )}
 
             {/* حالة لا توجد طلبات */}
