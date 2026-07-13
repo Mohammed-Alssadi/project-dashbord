@@ -40,7 +40,7 @@ export function ZidCategoryRow({ category }: ZidCategoryRowProps) {
       <TableCell className="text-right py-2">
         <div className="flex flex-col">
           <Link
-            to={`/dashboard/categories/${category.id}`}
+            to={`/categories/${category.id}`}
             className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
           >
             {name}
@@ -102,7 +102,7 @@ export function ZidCategoryRow({ category }: ZidCategoryRowProps) {
             title="عرض التفاصيل"
             asChild
           >
-            <Link to={`/dashboard/categories/${category.id}`}>
+            <Link to={`/categories/${category.id}`}>
               <Eye className="size-3.5" />
             </Link>
           </Button>

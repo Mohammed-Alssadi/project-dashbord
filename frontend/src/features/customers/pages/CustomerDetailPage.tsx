@@ -27,7 +27,7 @@ export const CustomerDetailPage = () => {
   }, [id, platform, fetchCustomerById, clearSelectedCustomer]);
 
   const handleBack = () => {
-    navigate('/dashboard/customers');
+    navigate('/customers');
   };
 
   return (

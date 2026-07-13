@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { categoryService } from '../services/categoryService';
-import { 
-  parseSallaCategoryList, 
-  parseZidCategoryList,
-  parseSallaCategoryDetails,
-  parseZidCategoryDetails
-} from '../adapters/categoryAdapter';
-import type { PlatformCategory } from '../types/category';
+import type { PlatformCategory, SallaCategoryItem, ZidCategoryItem } from '../types/category';
 import { 
   buildCategoryParams, 
   extractPagination, 
@@ -55,12 +49,9 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       const params = buildCategoryParams({ page, pageSize: 15 });
       const rawResponse = await categoryService.getCategories(params);
 
-      let parsedCategories: PlatformCategory[] = [];
-      if (platform === 'salla') {
-        parsedCategories = parseSallaCategoryList(rawResponse);
-      } else {
-        parsedCategories = parseZidCategoryList(rawResponse);
-      }
+      const parsedCategories: PlatformCategory[] = platform === 'salla'
+        ? (Array.isArray(rawResponse?.data) ? rawResponse.data : rawResponse?.categories || rawResponse || []) as SallaCategoryItem[]
+        : (Array.isArray(rawResponse?.results) ? rawResponse.results : rawResponse?.data || rawResponse?.categories || rawResponse || []) as ZidCategoryItem[];
 
       const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
 
@@ -84,12 +75,9 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       
       const rawResponse = await categoryService.getCategoryDetail(categoryId);
       
-      let parsedDetails: PlatformCategory | null = null;
-      if (platform === 'salla') {
-        parsedDetails = parseSallaCategoryDetails(rawResponse);
-      } else {
-        parsedDetails = parseZidCategoryDetails(rawResponse);
-      }
+      const parsedDetails: PlatformCategory = platform === 'salla'
+        ? (rawResponse?.data || rawResponse) as SallaCategoryItem
+        : (rawResponse?.categories || rawResponse?.category || rawResponse?.data || rawResponse) as ZidCategoryItem;
 
       set({ selectedCategory: parsedDetails, loadingDetail: false });
     } catch (err: any) {

@@ -1,7 +1,9 @@
-import { Link, Outlet, useNavigate, useOutletContext } from "react-router-dom"
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom"
 import { toast } from "sonner"
-import { authService, type AuthUser } from "@/features/auth/services/authService"
-import { useStoreProfile } from "@/features/settings/hooks/useStoreProfile"
+import { authService } from "@/features/auth/services/authService"
+import { useAuthStore } from "@/features/auth/store/authStore"
+import { useStoreProfileStore } from "@/features/store/store/storeProfileStore"
+import { useMerchantProfileStore } from "@/features/dashboard/store/merchantProfileStore"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -29,22 +31,28 @@ import {
   Home,
   MoreVertical,
   CircleUser,
-  CreditCard,
-  Bell,
   Package,
   Folder,
-  Settings,
   Users,
-  ShoppingBag
+  ShoppingBag,
+  Info,
+  Palette,
+  Globe,
+  Share2,
+  Briefcase,
 } from "lucide-react"
 
 export function DashboardLayout() {
   const navigate = useNavigate()
-  // الحصول على بيانات المستخدم المعرفة مسبقاً في ProtectedRoute بدون جلب إضافي
-  const { user } = useOutletContext<{ user: AuthUser }>()
-  
-  // جلب بيانات المتجر الحية (كاش لمدة 5 دقائق في الباك اند) لعرض اللوجو والاسم المحدث
-  const { profile: storeProfile, loading: loadingStore, refetch: refetchStore } = useStoreProfile()
+  const location = useLocation()
+
+  // الحصول على بيانات المستخدم مباشرة من Zustand (Global State)
+  const user = useAuthStore(state => state.user)
+
+  // الاعتماد المباشر والذري على Zustand (تم نقل جلب البيانات للـ Router Loader)
+  const storeProfile = useStoreProfileStore(state => state.profile)
+
+  const merchantProfile = useMerchantProfileStore(state => state.profile)
 
   const handleLogout = async () => {
     try {
@@ -55,25 +63,28 @@ export function DashboardLayout() {
     }
   }
 
-  // استخدام بيانات المتجر الحية للرأس (Header)
-  const storeAvatar = storeProfile?.avatar || user?.avatarUrl
-  const storeName = storeProfile?.name || user?.storeName || 'DashAI'
+  // استخدام بيانات المتجر الحية للرأس (Header) - الأولوية للـ API دائماً كما طلب المستخدم
+  const storeAvatar = storeProfile?.avatar || null
+  const storeName = storeProfile?.name || 'DashAI'
 
-  // استخدام بيانات المستخدم للتذييل (Footer)
-  const userAvatar = user?.avatarUrl || ''
-  const userName = user?.name || user?.email?.split("@")[0] || ''
+  // استخدام بيانات المستخدم للتذييل (Footer) من المنصة مباشرة
+  const rawName = merchantProfile?.name || merchantProfile?.user?.name || merchantProfile?.merchant?.name || user?.name || ''
+  const rawAvatar = merchantProfile?.avatar || merchantProfile?.merchant?.avatar || user?.avatarUrl || ''
+
+  const userAvatar = rawAvatar
+  const userName = rawName || user?.email?.split("@")[0] || ''
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background font-sans" dir="rtl">
-        
+
         {/* 1. القائمة الجانبية Collapsible (RTL Desktop Sidebar) */}
         <Sidebar side="right" variant="sidebar" collapsible="icon">
-          
+
           {/* رأس القائمة الجانبية */}
           <SidebarHeader className="border-b-0 pb-1">
             <div className="flex items-center gap-3 px-1 py-2 group-data-[collapsible=icon]:justify-center">
-              
+
               {/* أيقونة اللوجو الرسمية */}
               <div className="relative flex items-center justify-center size-11 group-data-[collapsible=icon]:size-8 rounded-xl bg-background border border-border/80 shadow-sm shrink-0 transition-all duration-300 hover:scale-105 group-data-[collapsible=icon]:mx-auto overflow-hidden">
                 {storeAvatar ? (
@@ -84,7 +95,7 @@ export function DashboardLayout() {
                 <span className="absolute top-0.5 left-0.5 size-1.5 bg-emerald-500 rounded-full border border-card animate-ping" />
                 <span className="absolute top-0.5 left-0.5 size-1.5 bg-emerald-500 rounded-full border border-card" />
               </div>
-              
+
               {/* اسم المنصة (يختفي عند طي القائمة) */}
               <div className="flex flex-col overflow-hidden text-right group-data-[collapsible=icon]:hidden">
                 <span className="font-extrabold text-[15px] tracking-tight text-foreground truncate max-w-[140px]" title={storeName}>
@@ -99,7 +110,7 @@ export function DashboardLayout() {
 
           {/* محتوى القائمة (الروابط) */}
           <SidebarContent className="px-2 pt-2 gap-4">
-            
+
             <SidebarGroup>
               <SidebarGroupLabel className="text-[10px] uppercase font-bold text-muted-foreground/70 mb-1 tracking-wider px-2 group-data-[collapsible=icon]:hidden">
                 الرئيسية
@@ -126,7 +137,7 @@ export function DashboardLayout() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="المنتجات">
-                      <Link to="/dashboard/products">
+                      <Link to="/products">
                         <Package className="h-4 w-4" />
                         <span>المنتجات</span>
                       </Link>
@@ -134,7 +145,7 @@ export function DashboardLayout() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="الأقسام">
-                      <Link to="/dashboard/categories">
+                      <Link to="/categories">
                         <Folder className="h-4 w-4" />
                         <span>الأقسام</span>
                       </Link>
@@ -142,7 +153,7 @@ export function DashboardLayout() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="العملاء">
-                      <Link to="/dashboard/customers">
+                      <Link to="/customers">
                         <Users className="h-4 w-4" />
                         <span>العملاء</span>
                       </Link>
@@ -150,7 +161,7 @@ export function DashboardLayout() {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="الطلبات">
-                      <Link to="/dashboard/orders">
+                      <Link to="/orders">
                         <ShoppingBag className="h-4 w-4" />
                         <span>الطلبات</span>
                       </Link>
@@ -162,18 +173,85 @@ export function DashboardLayout() {
 
             <SidebarGroup>
               <SidebarGroupLabel className="text-[10px] uppercase font-bold text-muted-foreground/70 mb-1 tracking-wider px-2 group-data-[collapsible=icon]:hidden">
-                الإعدادات
+                المتجر
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
+
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="معلومات المتجر">
-                      <Link to="/dashboard/settings">
-                        <Settings className="h-4 w-4" />
-                        <span>إعدادات المتجر</span>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="معلومات المتجر"
+                      isActive={location.pathname === '/store/info'}
+                    >
+                      <Link to="/store/info">
+                        <Info className="h-4 w-4" />
+                        <span>معلومات المتجر</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
+                  {/* الهوية البصرية — زد فقط */}
+                  {user?.platform === 'zid' && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip="الهوية البصرية"
+                        isActive={location.pathname === '/store/branding'}
+                      >
+                        <Link to="/store/branding">
+                          <Palette className="h-4 w-4" />
+                          <span>الهوية البصرية</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+
+                  {/* اللغة والعملة — زد فقط */}
+                  {user?.platform === 'zid' && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip="اللغة والعملة"
+                        isActive={location.pathname === '/store/localization'}
+                      >
+                        <Link to="/store/localization">
+                          <Globe className="h-4 w-4" />
+                          <span>اللغة والعملة</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="التواصل والتراخيص"
+                      isActive={location.pathname === '/store/social'}
+                    >
+                      <Link to="/store/social">
+                        <Share2 className="h-4 w-4" />
+                        <span>التواصل والتراخيص</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {/* النشاط التجاري — زد فقط */}
+                  {user?.platform === 'zid' && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip="النشاط التجاري"
+                        isActive={location.pathname === '/store/business'}
+                      >
+                        <Link to="/store/business">
+                          <Briefcase className="h-4 w-4" />
+                          <span>النشاط التجاري</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -184,7 +262,7 @@ export function DashboardLayout() {
           <SidebarFooter className="p-2 pb-4">
             <SidebarMenu>
               <SidebarMenuItem>
-                <DropdownMenu>
+                <DropdownMenu dir="rtl">
                   <DropdownMenuTrigger asChild>
                     <SidebarMenuButton
                       size="lg"
@@ -203,78 +281,73 @@ export function DashboardLayout() {
                               {userName}
                             </span>
                             <span className="text-[12px] text-muted-foreground  max-w-[110px] mt-1 truncate">
-                              {user.email || user.platformStoreId}
+                              {user?.email || user?.platformStoreId}
                             </span>
                           </div>
                         </div>
                         <MoreVertical className="h-4 w-4 text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
                       </div>
                     </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    
-                    <DropdownMenuContent 
-                      align="end" 
-                      side="top" 
-                      className="w-56 font-sans p-1.5 border border-border/60 shadow-md rounded-xl bg-popover"
-                    >
-                      <div className="flex items-center gap-2.5 p-2 pb-2.5 border-b border-border/40 mb-1">
-                        <Avatar className="size-8 rounded-lg border border-border shrink-0">
-                          <AvatarImage src={userAvatar} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase">
-                            {userName.substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col items-start leading-tight text-right overflow-hidden">
-                          <span className="text-xs font-bold text-foreground truncate max-w-[140px]">
-                            {userName}
-                          </span>
-                          <span className="text-[12px] text-muted-foreground  max-w-[140px] mt-0.5">
-                            {user.email || user.platformStoreId}
-                          </span>
-                        </div>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    align="end"
+                    side="top"
+                    className="w-56 font-sans p-1.5 border border-border/60 shadow-md rounded-xl bg-popover"
+                  >
+                    <div className="flex items-center gap-2.5 p-2 pb-2.5 border-b border-border/40 mb-1">
+                      <Avatar className="size-8 rounded-lg border border-border shrink-0">
+                        <AvatarImage src={userAvatar} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs rounded-lg uppercase">
+                          {userName.substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start leading-tight text-right overflow-hidden">
+                        <span className="text-xs font-bold text-foreground truncate max-w-[140px]" title={userName}>
+                          {userName}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[140px] mt-0.5 block" title={user?.email || user?.platformStoreId}>
+                          {user?.email || user?.platformStoreId}
+                        </span>
                       </div>
-                      
-                      <DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50">
-                        <CircleUser className="size-3.5 text-muted-foreground shrink-0" />
-                        <span>حساب المتجر</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50">
-                        <CreditCard className="size-3.5 text-muted-foreground shrink-0" />
-                        <span>الاشتراكات والمدفوعات</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50">
-                        <Bell className="size-3.5 text-muted-foreground shrink-0" />
-                        <span>الإشعارات والتنبيهات</span>
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuSeparator className="my-1 border-border/40" />
-                      
-                      <DropdownMenuItem 
-                        onSelect={(e) => {
-                          e.preventDefault()
-                          handleLogout().then(() => {
-                            toast.success("تم تسجيل الخروج بنجاح", { id: "logout-toast" })
-                          })
-                        }} 
-                        className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive rounded-md"
-                      >
-                        <LogOut className="size-3.5 shrink-0" />
-                        <span>تسجيل الخروج</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
+                    </div>
+
+                    <DropdownMenuItem
+                      onClick={() => navigate('/profile')}
+                      className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-medium rounded-md hover:bg-muted/50"
+                    >
+                      <CircleUser className="size-3.5 text-muted-foreground shrink-0" />
+                      <span>الملف الشخصي</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator className="my-1 border-border/40" />
+
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        handleLogout().then(() => {
+                          toast.success("تم تسجيل الخروج بنجاح", { id: "logout-toast" })
+                        })
+                      }}
+                      className="flex items-center justify-start gap-2 cursor-pointer text-right py-2 px-2 text-xs font-semibold text-destructive hover:bg-destructive/5 hover:text-destructive rounded-md"
+                    >
+                      <LogOut className="size-3.5 shrink-0" />
+                      <span>تسجيل الخروج</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
 
         </Sidebar>
 
         {/* 2. منطقة المحتوى والترويسة */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden">
-          
+
           {/* الترويسة العلوية المثبتة */}
           <header className="flex h-16 shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6 z-40">
-            
+
             {/* زر فتح/إغلاق القائمة الجانبية */}
             <SidebarTrigger className="h-9 w-9 border border-border shrink-0" />
 
@@ -285,7 +358,7 @@ export function DashboardLayout() {
 
           {/* محتوى الصفحة الفرعية القابل للتمرير */}
           <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-[#fafafa]">
-            <Outlet context={{ user, storeProfile, loadingStore, refetchStore }} />
+            <Outlet />
           </main>
         </div>
       </div>

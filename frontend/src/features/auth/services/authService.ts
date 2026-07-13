@@ -34,10 +34,7 @@ export const authService = {
     try {
       await apiClient.post('/api/auth/logout')
     } catch {
-      // تجاهل الأخطاء — الكوكي سيُمسح من الـ backend في كلا الحالتين
-    } finally {
-      // إطلاق حدث لتحديث حالة المصادقة في كل المكونات
-      window.dispatchEvent(new Event('auth_change'))
+      // الكوكي سيُمسح من الـ backend في كلا الحالتين
     }
   },
 }

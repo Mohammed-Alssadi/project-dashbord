@@ -17,6 +17,7 @@ if (!process.env.JWT_SECRET) {
 // ─── استيراد الموجهات (Routes) الموحدة ────────────────────────────────────────
 import authRoutes from './src/routes/authRoutes.js';
 import storeRoutes from './src/routes/storeRoutes.js';
+import merchantRoutes from './src/routes/merchant.routes.js';
 import proxyRoutes from './src/routes/proxyRoutes.js';
 import { protect } from './src/middlewares/authMiddleware.js';
 import { getStoreProfile } from './src/controllers/storeController.js';
@@ -72,13 +73,7 @@ app.use('/auth', oauthLimiter, authRoutes);
 
 app.use('/api/proxy', proxyRoutes);
 app.use('/api/store', storeRoutes);
-
-// ─── توافق رجعي مع الفرونت إند القديم (/api/integration/*) ─────────────────
-// نستخدم router جديد بدلاً من نفس instance لتجنب مشاكل Express Router middleware chain
-const integrationRouter = express.Router();
-integrationRouter.use(protect);
-integrationRouter.get('/store-profile', getStoreProfile);
-app.use('/api/integration', integrationRouter);
+app.use('/api/merchant', merchantRoutes);
 
 // ─── فحص جاهزية الخادم مع التحقق من DB (Health Check) ─────────────────────
 app.get('/health', async (req, res) => {

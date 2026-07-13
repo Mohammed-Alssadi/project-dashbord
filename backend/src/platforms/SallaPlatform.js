@@ -109,6 +109,19 @@ export class SallaPlatform extends BasePlatform {
     };
   }
 
+  async fetchRawMerchantProfile(accessToken) {
+    try {
+      const response = await axios.get(`${sallaConfig.authBaseUrl}/oauth2/user/info`, {
+        timeout: 10000,
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      return response.data; // Return the entire raw object
+    } catch (error) {
+      console.error('Salla Raw Merchant Profile Fetch Error:', error.response?.data || error.message);
+      throw new Error('Failed to fetch raw merchant profile from Salla');
+    }
+  }
+
   async fetchStoreProfile(accessToken) {
     try {
       const response = await axios.get(`${sallaConfig.apiBaseUrl}/store/info`, {

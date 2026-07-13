@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { productService } from '../services/productService';
-import { parseSallaProductList, parseZidProductList, parseSallaDetails, parseZidDetails } from '../adapters/productAdapter';
-import type { PlatformProduct } from '../types/product';
+import type { PlatformProduct, SallaProductItem, ZidProductItem } from '../types/product';
 import {
   buildProductParams,
   extractPagination,
@@ -53,12 +52,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
       const params = buildProductParams({ page, pageSize: 15 });
       const rawResponse = await productService.getProducts(params);
 
-      let parsedProducts: PlatformProduct[] = [];
-      if (platform === 'salla') {
-        parsedProducts = parseSallaProductList(rawResponse);
-      } else {
-        parsedProducts = parseZidProductList(rawResponse);
-      }
+      const parsedProducts: PlatformProduct[] = platform === 'salla'
+        ? (Array.isArray(rawResponse?.data) ? rawResponse.data as SallaProductItem[] : [])
+        : (Array.isArray(rawResponse?.results) ? rawResponse.results as ZidProductItem[] : []);
 
       const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
 
@@ -81,10 +77,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
       
       let parsedDetails: PlatformProduct;
       if (platform === 'salla') {
-        const cleanRaw = rawResponse?.data ? rawResponse.data : rawResponse;
-        parsedDetails = parseSallaDetails(cleanRaw);
+        parsedDetails = (rawResponse?.data ? rawResponse.data : rawResponse) as SallaProductItem;
       } else {
-        parsedDetails = parseZidDetails(rawResponse);
+        parsedDetails = rawResponse as ZidProductItem;
       }
 
       set({ selectedProduct: parsedDetails, loadingDetail: false });

@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, User, LogOut, Layers } from "lucide-react"
 import { Link as RouterLink, useNavigate } from "react-router-dom"
-import { useAuthState } from "@/features/auth/hooks/useAuthState"
+import { useAuthStore } from "@/features/auth/store/authStore"
 import { authService } from "@/features/auth/services/authService"
 import { LiveCounters } from "./LiveCounters"
 
 export function WelcomeHero() {
-  const { isLoggedIn } = useAuthState()
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
   const navigate = useNavigate()
 
   const handleLogout = async () => {

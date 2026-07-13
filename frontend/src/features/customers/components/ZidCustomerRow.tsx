@@ -13,7 +13,7 @@ export const ZidCustomerRow = ({ customer, index }: Props) => {
 
   const handleView = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/dashboard/customers/${customer.id}`);
+    navigate(`/customers/${customer.id}`);
   };
 
   const name = customer.name || '-';

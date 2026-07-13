@@ -41,7 +41,7 @@ export function SallaCategoryRow({ category }: SallaCategoryRowProps) {
       {/* 2. الاسم */}
       <TableCell className="text-right py-2">
         <Link
-          to={`/dashboard/categories/${category.id}`}
+          to={`/categories/${category.id}`}
           className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
         >
           {name}
@@ -92,7 +92,7 @@ export function SallaCategoryRow({ category }: SallaCategoryRowProps) {
             title="عرض التفاصيل"
             asChild
           >
-            <Link to={`/dashboard/categories/${category.id}`}>
+            <Link to={`/categories/${category.id}`}>
               <Eye className="size-3.5" />
             </Link>
           </Button>

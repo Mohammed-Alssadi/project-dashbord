@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom"
-import { useAuthState } from "@/features/auth/hooks/useAuthState"
+import { useAuthStore } from "@/features/auth/store/authStore"
 
 /**
- * مسار محمي — يتحقق من الجلسة عبر الكوكي باستخدام useAuthState
+ * مسار محمي — يتحقق من الجلسة عبر الكوكي ويشغل جلب بيانات المستخدم
  */
 export function ProtectedRoute() {
-  const { user, loading, isLoggedIn } = useAuthState()
+  const loading = useAuthStore(state => state.loading)
+  const isLoggedIn = useAuthStore(state => state.isLoggedIn)
 
   if (loading) {
     return (
@@ -19,6 +20,5 @@ export function ProtectedRoute() {
     return <Navigate to="/login" replace />
   }
 
-  // تمرير المستخدم عبر الـ context ليتمكن DashboardLayout من استخدامه بدون جلب إضافي
-  return <Outlet context={{ user }} />
+  return <Outlet />
 }

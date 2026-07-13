@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useOrderStore } from "../store/orderStore";
-import { useAuthState } from "@/features/auth/hooks/useAuthState";
-import { OrderRow } from "../components/OrderRow";
+import { useAuthStore } from "@/features/auth/store/authStore";
+import { SallaOrderRow } from "../components/SallaOrderRow";
+import { ZidOrderRow } from "../components/ZidOrderRow";
 import { OrdersPagination } from "../components/OrdersPagination";
 import { OrdersSkeleton } from "../components/OrdersSkeleton";
-import { OrderDetailsModal } from "../components/OrderDetailsModal";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -15,42 +16,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, RefreshCw, ShoppingBag, AlertCircle } from "lucide-react";
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
+import type { SallaOrder, ZidOrder } from "../types/order";
 
 export function OrdersPage() {
-  const { user } = useAuthState();
+  const user = useAuthStore(state => state.user);
   const platform = (user?.platform as 'salla' | 'zid') || 'salla';
   
   const { 
     orders, 
-    currentOrderDetails, 
     loadingList, 
-    loadingDetails, 
     error, 
     pagination,
-    fetchOrders,
-    fetchOrderDetails,
-    clearCurrentOrder,
-    goToPage,
-    refresh
+    fetchOrders
   } = useOrderStore();
 
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageParam = parseInt(searchParams.get("page") || "1", 10);
 
-  // Initial fetch
+  // Initial fetch on mount/dependency change
   useEffect(() => {
-    fetchOrders(1, platform);
-  }, [fetchOrders, platform]);
+    fetchOrders(platform, pageParam);
+  }, [fetchOrders, platform, pageParam]);
 
-  const handleViewDetails = async (orderId: string | number) => {
-    setIsDrawerOpen(true);
-    await fetchOrderDetails(orderId, platform);
+  const handleRefresh = () => {
+    fetchOrders(platform, pageParam);
   };
 
-  const handleCloseDrawer = (open: boolean) => {
-    setIsDrawerOpen(open);
-    if (!open) {
-      setTimeout(() => clearCurrentOrder(), 300); // Clear after animation
-    }
+  const handlePageChange = (page: number) => {
+    setSearchParams({ page: page.toString() });
   };
 
   return (
@@ -74,7 +68,7 @@ export function OrdersPage() {
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => refresh(platform)}
+            onClick={handleRefresh}
             disabled={loadingList}
             variant="outline"
             size="sm"
@@ -95,64 +89,56 @@ export function OrdersPage() {
       )}
 
       {/* الحاوية الرئيسية للجدول */}
-      <div className="border border-border/40 rounded-sm bg-card shadow-sm overflow-hidden w-full">
-        <Table>
-          <TableHeader className="bg-muted/20">
-            <TableRow>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">رقم الطلب</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التاريخ</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">العميل</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الدفع</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الإجمالي</TableHead>
-              <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {/* حالة التحميل */}
-            {loadingList && orders.length === 0 && (
-              <OrdersSkeleton />
-            )}
-
-            {/* حالة لا توجد طلبات */}
-            {!loadingList && orders.length === 0 && (
+      <LocalErrorBoundary>
+        <div className="border border-border/40 rounded-xl bg-card shadow-sm overflow-hidden w-full">
+          <Table>
+            <TableHeader className="bg-muted/20">
               <TableRow>
-                <TableCell colSpan={7} className="py-20 text-center">
-                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                    <ShoppingBag className="size-10 opacity-25" />
-                    <span className="text-sm">لا توجد طلبات مسجلة حالياً</span>
-                  </div>
-                </TableCell>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">رقم الطلب</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التاريخ</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">العميل</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الدفع</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الإجمالي</TableHead>
+                <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
               </TableRow>
-            )}
+            </TableHeader>
 
-            {/* الصفوف */}
-            {orders.map((order) => (
-              <OrderRow 
-                key={order.id} 
-                order={order} 
-                onViewDetails={handleViewDetails} 
-              />
-            ))}
-          </TableBody>
-        </Table>
+            <TableBody>
+              {/* حالة التحميل */}
+              {loadingList && orders.length === 0 ? (
+                <OrdersSkeleton rowsCount={8} />
+              ) : orders.length === 0 ? (
+                /* حالة لا توجد طلبات */
+                <TableRow>
+                  <TableCell colSpan={7} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                      <ShoppingBag className="size-10 opacity-25" />
+                      <span className="text-sm">لا توجد طلبات مسجلة حالياً</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                /* الصفوف */
+                orders.map((order) => 
+                  platform === 'zid' ? (
+                    <ZidOrderRow key={order.id} order={order as ZidOrder} />
+                  ) : (
+                    <SallaOrderRow key={order.id} order={order as SallaOrder} />
+                  )
+                )
+              )}
+            </TableBody>
+          </Table>
 
-        {/* الباجينيشن */}
-        <OrdersPagination
-          pagination={pagination}
-          onPageChange={(p) => goToPage(p, platform)}
-          loading={loadingList}
-        />
-      </div>
-
-      {/* نافذة التفاصيل المركزية (Modal) المتكفلة بعرض الـ Skeleton بنفسها */}
-      <OrderDetailsModal 
-        open={isDrawerOpen} 
-        onOpenChange={handleCloseDrawer} 
-        order={currentOrderDetails} 
-        loading={loadingDetails && !currentOrderDetails}
-      />
+          {/* الباجينيشن */}
+          <OrdersPagination
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            loading={loadingList}
+          />
+        </div>
+      </LocalErrorBoundary>
 
     </div>
   );

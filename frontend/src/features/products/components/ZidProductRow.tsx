@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Package, ExternalLink, Eye, Edit, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import type { ZidProductItem } from "../types/product"
-import { extractName } from "../adapters/productAdapter"
+import { extractName } from "../utils/productUtils"
 
 interface ZidProductRowProps {
   product: ZidProductItem;
@@ -56,7 +56,7 @@ if (product.is_draft) {
       {/* 2. الاسم */}
       <TableCell className="text-right py-2">
         <Link
-          to={`/dashboard/products/${product.id}`}
+          to={`/products/${product.id}`}
           className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
         >
           {name}
@@ -141,7 +141,7 @@ if (product.is_draft) {
             title="عرض التفاصيل"
             asChild
           >
-            <Link to={`/dashboard/products/${product.id}`}>
+            <Link to={`/products/${product.id}`}>
               <Eye className="size-3.5" />
             </Link>
           </Button>

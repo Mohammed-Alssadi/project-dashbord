@@ -13,7 +13,7 @@ export const SallaCustomerRow = ({ customer, index }: Props) => {
 
   const handleView = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/dashboard/customers/${customer.id}`);
+    navigate(`/customers/${customer.id}`);
   };
 
   const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || '-';

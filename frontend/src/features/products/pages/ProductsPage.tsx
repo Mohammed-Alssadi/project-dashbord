@@ -18,6 +18,8 @@ import {
 import { Loader2, RefreshCw, Package, AlertCircle } from "lucide-react"
 import type { SallaProductItem, ZidProductItem } from "../types/product"
 
+import { LocalErrorBoundary } from "@/components/LocalErrorBoundary"
+
 export function ProductsPage() {
   const { products, pagination, loading, error, fetchProducts } = useProductStore()
   const { user } = useAuthStore()
@@ -80,64 +82,66 @@ export function ProductsPage() {
       )}
 
       {/* حاوية الجدول الكاملة */}
-      <div className="border border-border/40 rounded-xl bg-card shadow-sm overflow-hidden w-full">
+      <LocalErrorBoundary>
+        <div className="border border-border/40 rounded-xl bg-card shadow-sm overflow-hidden w-full">
 
-        <Table>
-          <TableHeader className="bg-muted/20">
-            <TableRow>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3 w-[60px]">الصورة</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">اسم المنتج</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">رمز SKU</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الحالي</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الأساسي</TableHead>
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الكمية</TableHead>
-              {platform === 'zid' ? (
-                <>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الفئة (Class)</TableHead>
-                </>
-              ) : (
-                <>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النوع (Type)</TableHead>
-                  <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">قنوات البيع</TableHead>
-                </>
-              )}
-              <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
-              <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            {loading ? (
-              <ProductsSkeleton rows={8} platform={platform} />
-            ) : products.length === 0 ? (
+          <Table>
+            <TableHeader className="bg-muted/20">
               <TableRow>
-                <TableCell colSpan={10} className="py-20 text-center">
-                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                    <Package className="size-10 opacity-25" />
-                    <span className="text-sm">لا توجد منتجات متوفرة بالمتجر حالياً</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              products.map((product) => 
-                platform === 'zid' ? (
-                  <ZidProductRow key={product.id} product={product as ZidProductItem} />
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3 w-[60px]">الصورة</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">اسم المنتج</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">رمز SKU</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الحالي</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الأساسي</TableHead>
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الكمية</TableHead>
+                {platform === 'zid' ? (
+                  <>
+                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الفئة (Class)</TableHead>
+                  </>
                 ) : (
-                  <SallaProductRow key={product.id} product={product as SallaProductItem} />
-                )
-              )
-            )}
-          </TableBody>
-        </Table>
+                  <>
+                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النوع (Type)</TableHead>
+                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">قنوات البيع</TableHead>
+                  </>
+                )}
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
+                <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
+              </TableRow>
+            </TableHeader>
 
-        {/* الباجينيشن — أسفل الجدول */}
-        <ProductsPagination
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          loading={loading}
-        />
-      </div>
+            <TableBody>
+              {loading ? (
+                <ProductsSkeleton rows={8} platform={platform} />
+              ) : products.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                      <Package className="size-10 opacity-25" />
+                      <span className="text-sm">لا توجد منتجات متوفرة بالمتجر حالياً</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                products.map((product) => 
+                  platform === 'zid' ? (
+                    <ZidProductRow key={product.id} product={product as ZidProductItem} />
+                  ) : (
+                    <SallaProductRow key={product.id} product={product as SallaProductItem} />
+                  )
+                )
+              )}
+            </TableBody>
+          </Table>
+
+          {/* الباجينيشن — أسفل الجدول */}
+          <ProductsPagination
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        </div>
+      </LocalErrorBoundary>
 
     </div>
   )

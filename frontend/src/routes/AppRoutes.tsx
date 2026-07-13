@@ -1,14 +1,20 @@
 import { lazy, Suspense } from "react"
-import { createBrowserRouter, RouterProvider, useRouteError } from "react-router-dom"
+import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { PageLoader } from "@/components/PageLoader"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
+import { useAuthStore } from "@/features/auth/store/authStore"
+import { useStoreProfileStore } from "@/features/store/store/storeProfileStore"
+import { useMerchantProfileStore } from "@/features/dashboard/store/merchantProfileStore"
+import { useDashboardStore } from "@/features/dashboard/store/dashboardStore"
+import { GlobalErrorBoundary } from "./components/GlobalErrorBoundary"
+import { DashboardRouteErrorBoundary } from "./components/DashboardRouteErrorBoundary"
 
 const WelcomePage = lazy(() =>
   import("@/features/welcome").then((module) => ({ default: module.WelcomePage }))
 )
 
-const DashboardWelcomePage = lazy(() =>
-  import("@/features/welcome/pages/DashboardWelcomePage").then((module) => ({ default: module.DashboardWelcomePage }))
+const DashboardPage = lazy(() =>
+  import("@/features/dashboard/pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 )
 const ProductsPage = lazy(() =>
   import("@/features/products").then((module) => ({ default: module.ProductsPage }))
@@ -22,8 +28,23 @@ const CategoriesPage = lazy(() =>
 const CategoryDetailPage = lazy(() =>
   import("@/features/categories/pages/CategoryDetailPage").then((module) => ({ default: module.CategoryDetailPage }))
 )
-const StoreSettingsPage = lazy(() =>
-  import("@/features/settings").then((module) => ({ default: module.StoreSettingsPage }))
+const StoreInfoPage = lazy(() =>
+  import("@/features/store/pages/StoreInfoPage").then((m) => ({ default: m.StoreInfoPage }))
+)
+const StoreBrandingPage = lazy(() =>
+  import("@/features/store/pages/StoreBrandingPage").then((m) => ({ default: m.StoreBrandingPage }))
+)
+const StoreLocalizationPage = lazy(() =>
+  import("@/features/store/pages/StoreLocalizationPage").then((m) => ({ default: m.StoreLocalizationPage }))
+)
+const StoreSocialPage = lazy(() =>
+  import("@/features/store/pages/StoreSocialPage").then((m) => ({ default: m.StoreSocialPage }))
+)
+const StoreBusinessPage = lazy(() =>
+  import("@/features/store/pages/StoreBusinessPage").then((m) => ({ default: m.StoreBusinessPage }))
+)
+const UserProfilePage = lazy(() =>
+  import("@/features/profile/pages/UserProfilePage").then((module) => ({ default: module.UserProfilePage }))
 )
 const DashboardLayout = lazy(() =>
   import("@/layouts/DashboardLayout").then((module) => ({ default: module.DashboardLayout }))
@@ -40,30 +61,11 @@ const CustomerDetailPage = lazy(() =>
 const OrdersPage = lazy(() =>
   import("@/features/orders").then((module) => ({ default: module.OrdersPage }))
 )
+const OrderDetailPage = lazy(() =>
+  import("@/features/orders").then((module) => ({ default: module.OrderDetailPage }))
+)
 
-function GlobalErrorBoundary() {
-  const error = useRouteError() as any;
-  const isChunkLoadError = error?.name === 'ChunkLoadError' || 
-    (error?.message && error.message.includes("Failed to fetch dynamically imported module"));
 
-  if (isChunkLoadError) {
-    window.location.reload();
-    return <PageLoader />;
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground p-4 text-center" dir="rtl">
-      <h1 className="text-2xl font-bold mb-4 text-destructive">عذراً، حدث خطأ غير متوقع!</h1>
-      <p className="text-muted-foreground mb-6 text-sm">نعتذر، يبدو أن هناك مشكلة في تحميل هذه الصفحة.</p>
-      <button 
-        onClick={() => window.location.reload()}
-        className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium text-sm"
-      >
-        إعادة تحميل الصفحة
-      </button>
-    </div>
-  );
-}
 
 const router = createBrowserRouter([
   {
@@ -87,6 +89,10 @@ const router = createBrowserRouter([
       },
       {
         element: <ProtectedRoute />,
+        loader: () => {
+          useAuthStore.getState().fetchUser();
+          return null;
+        },
         children: [
           {
             element: (
@@ -94,83 +100,161 @@ const router = createBrowserRouter([
                 <DashboardLayout />
               </Suspense>
             ),
+            loader: () => {
+              useMerchantProfileStore.getState().fetchProfile();
+              useStoreProfileStore.getState().fetchProfile();
+              return null;
+            },
             children: [
-          {
-            path: "/dashboard",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <DashboardWelcomePage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/products",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <ProductsPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/products/:id",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <ProductDetailPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/categories",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <CategoriesPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/categories/:id",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <CategoryDetailPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/settings",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <StoreSettingsPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/customers",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <CustomersPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/customers/:id",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <CustomerDetailPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "/dashboard/orders",
-            element: (
-              <Suspense fallback={<PageLoader />}>
-                <OrdersPage />
-              </Suspense>
-            ),
+              {
+                errorElement: <DashboardRouteErrorBoundary />,
+                children: [
+                  {
+                    path: "/dashboard",
+                    loader: () => {
+                      useDashboardStore.getState().fetchStats();
+                      return null;
+                    },
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <DashboardPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/products",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <ProductsPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/products/:id",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <ProductDetailPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/categories",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <CategoriesPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/categories/:id",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <CategoryDetailPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    // المسار الأب /store — يجلب البيانات مرة واحدة لكل الصفحات الفرعية
+                    path: "/store",
+                    loader: () => {
+                      useStoreProfileStore.getState().fetchProfile();
+                      return null;
+                    },
+                    children: [
+                      {
+                        index: true,
+                        // redirect تلقائي لـ /store/info
+                        loader: () => { return Response.redirect('/store/info'); },
+                        element: null,
+                      },
+                      {
+                        path: "info",
+                        element: (
+                          <Suspense fallback={<PageLoader fullScreen={false} />}>
+                            <StoreInfoPage />
+                          </Suspense>
+                        ),
+                      },
+                      {
+                        path: "branding",
+                        element: (
+                          <Suspense fallback={<PageLoader fullScreen={false} />}>
+                            <StoreBrandingPage />
+                          </Suspense>
+                        ),
+                      },
+                      {
+                        path: "localization",
+                        element: (
+                          <Suspense fallback={<PageLoader fullScreen={false} />}>
+                            <StoreLocalizationPage />
+                          </Suspense>
+                        ),
+                      },
+                      {
+                        path: "social",
+                        element: (
+                          <Suspense fallback={<PageLoader fullScreen={false} />}>
+                            <StoreSocialPage />
+                          </Suspense>
+                        ),
+                      },
+                      {
+                        path: "business",
+                        element: (
+                          <Suspense fallback={<PageLoader fullScreen={false} />}>
+                            <StoreBusinessPage />
+                          </Suspense>
+                        ),
+                      },
+                    ],
+                  },
+                  {
+                    path: "/profile",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <UserProfilePage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/customers",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <CustomersPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/customers/:id",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <CustomerDetailPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/orders",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <OrdersPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/orders/:id",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <OrderDetailPage />
+                      </Suspense>
+                    ),
+                  },
+                ]
+              }
+            ],
           },
         ],
       },
-    ],
-  },
     ],
   },
 ])

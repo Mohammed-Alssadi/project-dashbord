@@ -72,10 +72,4 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 }));
 
-// الاستماع لحدث auth_change القادم من الـ authService
-if (typeof window !== 'undefined') {
-  window.addEventListener('auth_change', () => {
-    // إجبار المتجر على إعادة جلب البيانات لتحديث حالته تفاعلياً
-    useAuthStore.getState().fetchUser(true);
-  });
-}
+

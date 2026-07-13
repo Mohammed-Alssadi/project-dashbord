@@ -37,7 +37,7 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
       {/* 2. الاسم */}
       <TableCell className="text-right py-2">
         <Link
-          to={`/dashboard/products/${product.id}`}
+          to={`/products/${product.id}`}
           className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
         >
           {product.name}
@@ -126,7 +126,7 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
             title="عرض التفاصيل"
             asChild
           >
-            <Link to={`/dashboard/products/${product.id}`}>
+            <Link to={`/products/${product.id}`}>
               <Eye className="size-3.5" />
             </Link>
           </Button>

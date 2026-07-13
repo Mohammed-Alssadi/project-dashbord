@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { customerService } from '../services/customerService';
-import { 
-  parseSallaCustomerList, 
-  parseZidCustomerList,
-  parseSallaCustomerDetails,
-  parseZidCustomerDetails
-} from '../adapters/customerAdapter';
-import type { PlatformCustomer } from '../types/customer';
+import type { PlatformCustomer, SallaCustomerItem, ZidCustomerItem } from '../types/customer';
 import { 
   buildCustomerParams, 
   extractPagination, 
@@ -55,12 +49,9 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       const params = buildCustomerParams({ page, pageSize: 15 });
       const rawResponse = await customerService.getCustomers(params);
 
-      let parsedCustomers: PlatformCustomer[] = [];
-      if (platform === 'salla') {
-        parsedCustomers = parseSallaCustomerList(rawResponse);
-      } else {
-        parsedCustomers = parseZidCustomerList(rawResponse);
-      }
+      const parsedCustomers: PlatformCustomer[] = platform === 'salla'
+        ? (Array.isArray(rawResponse?.data) ? rawResponse.data : []) as SallaCustomerItem[]
+        : (Array.isArray(rawResponse?.customers) ? rawResponse.customers : Array.isArray(rawResponse?.results) ? rawResponse.results : []) as ZidCustomerItem[];
 
       const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
 
@@ -85,12 +76,9 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
       const isZid = platform === 'zid';
       const rawResponse = await customerService.getCustomerById(customerId, isZid);
       
-      let parsedDetails: PlatformCustomer | null = null;
-      if (platform === 'salla') {
-        parsedDetails = parseSallaCustomerDetails(rawResponse);
-      } else {
-        parsedDetails = parseZidCustomerDetails(rawResponse);
-      }
+      const parsedDetails: PlatformCustomer = platform === 'salla'
+        ? (rawResponse?.data || rawResponse) as SallaCustomerItem
+        : (rawResponse?.customer || rawResponse) as ZidCustomerItem;
 
       set({ selectedCustomer: parsedDetails, loadingDetail: false });
     } catch (err: any) {

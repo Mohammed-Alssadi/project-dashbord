@@ -46,7 +46,7 @@ export function CategoryDetailPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/dashboard/categories')}
+            onClick={() => navigate('/categories')}
             className="h-9 w-9 rounded-xl hover:bg-muted"
           >
             <ChevronRight className="size-5" />
