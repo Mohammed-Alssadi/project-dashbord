@@ -14,7 +14,9 @@ export function ZidProductDetail({ details }: ZidProductDetailProps) {
 
   const name = extractName(details.name);
   const description = extractName(details.short_description);
-  const category = details.categories?.[0] ? extractName(details.categories[0].name) : 'غير مصنف';
+  const categoriesList = details.categories && details.categories.length > 0 
+    ? details.categories.map(c => extractName(c.name)).filter(Boolean).join('، ')
+    : 'غير مصنف';
   const seoTitle = details.seo?.title ? extractName(details.seo.title) : null;
   const seoDescription = details.seo?.description ? extractName(details.seo.description) : null;
 
@@ -105,8 +107,8 @@ export function ZidProductDetail({ details }: ZidProductDetailProps) {
               <span className="font-mono text-xs font-semibold text-foreground">{details.product_class || '—'}</span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground block mb-0.5">التصنيف</span>
-              <span className="font-semibold text-foreground">{category}</span>
+              <span className="text-xs text-muted-foreground block mb-0.5">التصنيفات</span>
+              <span className="font-semibold text-foreground">{categoriesList}</span>
             </div>
             <div>
               <span className="text-xs text-muted-foreground block mb-0.5">الباركود (Barcode)</span>

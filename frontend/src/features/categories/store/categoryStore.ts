@@ -1,24 +1,37 @@
 import { create } from 'zustand';
 import { categoryService } from '../services/categoryService';
 import type { PlatformCategory, SallaCategoryItem, ZidCategoryItem } from '../types/category';
-import { 
-  buildCategoryParams, 
-  extractPagination, 
-  type PaginationMeta 
-} from '../adapters/categoryQueryAdapter';
+
+export interface PaginationMeta {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  perPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface CategoryFilters {
+  search: string;
+  status?: string;
+  is_published?: string;
+}
 
 interface CategoryState {
   categories: PlatformCategory[];
   pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
+  filters: CategoryFilters;
   
   selectedCategory: PlatformCategory | null;
   loadingDetail: boolean;
   errorDetail: string | null;
 
-  fetchCategories: (platform: 'salla' | 'zid', page?: number) => Promise<void>;
+  fetchCategories: (platform: 'salla' | 'zid', page?: number, urlFilters?: Partial<CategoryFilters>) => Promise<void>;
   goToPage: (platform: 'salla' | 'zid', page: number) => void;
+  setFilter: (key: keyof CategoryFilters, value: any) => void;
+  resetFilters: () => void;
   fetchCategoryById: (platform: 'salla' | 'zid', categoryId: string | number) => Promise<void>;
   clearSelectedCategory: () => void;
 }
@@ -32,28 +45,46 @@ const DEFAULT_PAGINATION: PaginationMeta = {
   hasPrev: false,
 };
 
+const DEFAULT_FILTERS: CategoryFilters = {
+  search: '',
+  status: '',
+  is_published: '',
+};
+
 export const useCategoryStore = create<CategoryState>((set, get) => ({
   categories: [],
   pagination: DEFAULT_PAGINATION,
   loading: true,
   error: null,
+  filters: DEFAULT_FILTERS,
   
   selectedCategory: null,
   loadingDetail: false,
   errorDetail: null,
 
-  fetchCategories: async (platform, page = 1) => {
+  fetchCategories: async (_platform, page = 1, urlFilters) => {
     try {
       set({ loading: true, error: null });
 
-      const params = buildCategoryParams({ page, pageSize: 15 });
-      const rawResponse = await categoryService.getCategories(params);
+      const cleanParams: Record<string, any> = { page, limit: 15 };
+      
+      const activeFilters = urlFilters || get().filters;
+      
+      const search = (activeFilters.search || '').trim();
+      if (search) cleanParams.search = search;
 
-      const parsedCategories: PlatformCategory[] = platform === 'salla'
-        ? (Array.isArray(rawResponse?.data) ? rawResponse.data : rawResponse?.categories || rawResponse || []) as SallaCategoryItem[]
-        : (Array.isArray(rawResponse?.results) ? rawResponse.results : rawResponse?.data || rawResponse?.categories || rawResponse || []) as ZidCategoryItem[];
+      const status = activeFilters.status;
+      if (status) cleanParams.status = status;
 
-      const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
+      const isPublished = activeFilters.is_published;
+      if (isPublished) cleanParams.is_published = isPublished;
+
+      const response = await categoryService.getCategories(cleanParams);
+      console.log('Categories API response:', response);
+      console.log('Categories pagination metadata:', response?.pagination);
+
+      const parsedCategories = response?.data as PlatformCategory[] || [];
+      const pagination = response?.pagination || DEFAULT_PAGINATION;
 
       set({ 
         categories: parsedCategories, 
@@ -61,12 +92,23 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         loading: false 
       });
     } catch (err: any) {
+      console.error('fetchCategories error:', err);
       set({ error: err.message || 'فشل جلب الأقسام', loading: false });
     }
   },
 
   goToPage: (platform, page) => {
     get().fetchCategories(platform, page);
+  },
+
+  setFilter: (key, value) => {
+    set((state) => ({
+      filters: { ...state.filters, [key]: value }
+    }));
+  },
+
+  resetFilters: () => {
+    set({ filters: DEFAULT_FILTERS });
   },
 
   fetchCategoryById: async (platform, categoryId) => {

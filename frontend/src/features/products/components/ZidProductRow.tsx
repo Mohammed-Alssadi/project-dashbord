@@ -16,7 +16,9 @@ export function ZidProductRow({ product }: ZidProductRowProps) {
   const price = product.price;
   const salePrice = product.sale_price;
   const name = extractName(product.name);
-  const category = product.categories?.[0] ? extractName(product.categories[0].name) : 'غير مصنف';
+  const category = product.categories?.[0] 
+    ? extractName(product.categories[0].name) 
+    : 'غير مصنف';
 let status = '';
 let statusColor = '';
 
@@ -54,10 +56,11 @@ if (product.is_draft) {
       </TableCell>
 
       {/* 2. الاسم */}
-      <TableCell className="text-right py-2">
+      <TableCell className="text-right py-2 max-w-[180px]">
         <Link
           to={`/products/${product.id}`}
-          className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
+          className="text-sm font-semibold text-foreground hover:text-primary transition-colors hover:underline block truncate"
+          title={name}
         >
           {name}
         </Link>
@@ -97,17 +100,10 @@ if (product.is_draft) {
         </span>
       </TableCell>
 
-      {/* 7. التصنيف (Zid specific) */}
+      {/* 7. التصنيف (Zid - القسم الأساسي فقط) */}
       <TableCell className="text-right py-2">
         <span className="text-xs text-muted-foreground">
           {category}
-        </span>
-      </TableCell>
-
-      {/* 8. فئة المنتج (Zid specific) */}
-      <TableCell className="text-right py-2">
-        <span className="text-xs text-muted-foreground/70 font-mono">
-          {product.product_class || '—'}
         </span>
       </TableCell>
 
@@ -150,8 +146,11 @@ if (product.is_draft) {
             size="icon"
             className="h-7 w-7 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 transition-colors text-muted-foreground"
             title="تعديل المنتج"
+            asChild
           >
-            <Edit className="w-3.5 h-3.5" />
+            <Link to={`/products/${product.id}/edit`}>
+              <Edit className="w-3.5 h-3.5" />
+            </Link>
           </Button>
           <Button
             variant="ghost"

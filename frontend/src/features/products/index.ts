@@ -1,2 +1,3 @@
-export * from "./pages/ProductsPage";
-export * from "./pages/ProductDetailPage";
+export { ProductsPage } from "./pages/ProductsPage";
+export { ProductDetailPage } from "./pages/ProductDetailPage";
+export { ProductEditPage } from "./pages/ProductEditPage";

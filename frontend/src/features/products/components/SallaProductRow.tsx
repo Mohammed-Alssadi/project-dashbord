@@ -35,10 +35,11 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
       </TableCell>
 
       {/* 2. الاسم */}
-      <TableCell className="text-right py-2">
+      <TableCell className="text-right py-2 max-w-[180px]">
         <Link
           to={`/products/${product.id}`}
-          className="text-sm font-semibold text-foreground hover:text-primary transition-colors line-clamp-1 hover:underline"
+          className="text-sm font-semibold text-foreground hover:text-primary transition-colors hover:underline block truncate"
+          title={product.name}
         >
           {product.name}
         </Link>
@@ -76,27 +77,14 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
         </span>
       </TableCell>
 
-      {/* 7. النوع (Salla specific) */}
+      {/* التصنيف (Salla - القسم الأساسي فقط) */}
       <TableCell className="text-right py-2">
-        <span className="text-xs text-muted-foreground/70 font-mono">
-          {product.type || 'product'}
+        <span className="text-xs text-muted-foreground">
+          {product.categories?.[0]?.name || 'غير مصنف'}
         </span>
       </TableCell>
 
-      {/* 8. قنوات البيع (Salla specific) */}
-      <TableCell className="text-right py-2">
-        <div className="flex gap-1 flex-wrap">
-          {product.channels?.length > 0 ? product.channels.map((ch, idx) => (
-            <Badge key={idx} variant="outline" className="text-[10px] px-1 py-0 capitalize">
-              {ch}
-            </Badge>
-          )) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
-        </div>
-      </TableCell>
-
-      {/* 9. الحالة */}
+      {/* 7. الحالة */}
       <TableCell className="text-right py-2">
         <Badge variant="outline" className="text-[10px] px-2 py-0.5 rounded-md font-mono border-muted-foreground/30 text-muted-foreground bg-muted/5">
           {product.status}
@@ -135,8 +123,11 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
             size="icon"
             className="h-7 w-7 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 transition-colors text-muted-foreground"
             title="تعديل المنتج"
+            asChild
           >
-            <Edit className="w-3.5 h-3.5" />
+            <Link to={`/products/${product.id}/edit`}>
+              <Edit className="w-3.5 h-3.5" />
+            </Link>
           </Button>
           <Button
             variant="ghost"

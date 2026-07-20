@@ -1,11 +1,15 @@
 import { create } from 'zustand';
 import { customerService } from '../services/customerService';
 import type { PlatformCustomer, SallaCustomerItem, ZidCustomerItem } from '../types/customer';
-import { 
-  buildCustomerParams, 
-  extractPagination, 
-  type PaginationMeta 
-} from '../adapters/customerQueryAdapter';
+
+export interface PaginationMeta {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  perPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
 
 interface CustomerState {
   customers: PlatformCustomer[];
@@ -46,14 +50,14 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const params = buildCustomerParams({ page, pageSize: 15 });
+      const params = { page, limit: 15 };
       const rawResponse = await customerService.getCustomers(params);
 
       const parsedCustomers: PlatformCustomer[] = platform === 'salla'
         ? (Array.isArray(rawResponse?.data) ? rawResponse.data : []) as SallaCustomerItem[]
         : (Array.isArray(rawResponse?.customers) ? rawResponse.customers : Array.isArray(rawResponse?.results) ? rawResponse.results : []) as ZidCustomerItem[];
 
-      const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
+      const pagination = rawResponse?.pagination || DEFAULT_PAGINATION;
 
       set({ 
         customers: parsedCustomers, 

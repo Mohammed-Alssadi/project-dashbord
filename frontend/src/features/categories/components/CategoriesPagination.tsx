@@ -1,6 +1,6 @@
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { PaginationMeta } from '../adapters/categoryQueryAdapter';
+import type { PaginationMeta } from '../store/categoryStore';
 
 interface CategoriesPaginationProps {
   pagination: PaginationMeta;

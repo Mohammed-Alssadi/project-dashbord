@@ -1,11 +1,24 @@
 import { create } from 'zustand';
 import { productService } from '../services/productService';
 import type { PlatformProduct, SallaProductItem, ZidProductItem } from '../types/product';
-import {
-  buildProductParams,
-  extractPagination,
-  type PaginationMeta,
-} from '../adapters/productQueryAdapter';
+
+export interface PaginationMeta {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  perPage: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface ProductFilters {
+  search: string;
+  category_id: string;
+  status?: string;
+  product_class?: string;
+  is_published?: string;
+  in_stock?: string;
+}
 
 interface ProductState {
   // List State
@@ -13,6 +26,7 @@ interface ProductState {
   pagination: PaginationMeta;
   loading: boolean;
   error: string | null;
+  filters: ProductFilters;
 
   // Detail State
   selectedProduct: PlatformProduct | null;
@@ -20,9 +34,12 @@ interface ProductState {
   errorDetail: string | null;
 
   // Actions
-  fetchProducts: (platform: 'salla' | 'zid', page?: number) => Promise<void>;
+  fetchProducts: (platform: 'salla' | 'zid', page?: number, urlFilters?: Partial<ProductFilters>) => Promise<void>;
   goToPage: (platform: 'salla' | 'zid', page: number) => void;
+  setFilter: (key: keyof ProductFilters, value: any) => void;
+  resetFilters: () => void;
   fetchProductById: (platform: 'salla' | 'zid', productId: string | number) => Promise<void>;
+  updateProduct: (platform: 'salla' | 'zid', productId: string | number, data: any) => Promise<void>;
   clearSelectedProduct: () => void;
 }
 
@@ -35,28 +52,46 @@ const DEFAULT_PAGINATION: PaginationMeta = {
   hasPrev: false,
 };
 
+const DEFAULT_FILTERS: ProductFilters = {
+  search: '',
+  category_id: '',
+  status: '',
+  product_class: '',
+  is_published: '',
+  in_stock: '',
+};
+
 export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
   pagination: DEFAULT_PAGINATION,
   loading: true,
   error: null,
+  filters: DEFAULT_FILTERS,
   
   selectedProduct: null,
   loadingDetail: false,
   errorDetail: null,
 
-  fetchProducts: async (platform, page = 1) => {
+  fetchProducts: async (_platform, page = 1, urlFilters) => {
     try {
       set({ loading: true, error: null });
 
-      const params = buildProductParams({ page, pageSize: 15 });
-      const rawResponse = await productService.getProducts(params);
+      // تجميع وتصفية الفلاتر النشطة (عدم إرسال قيم فارغة)
+      const cleanParams: Record<string, any> = { page, limit: 15 };
+      
+      // استخدام urlFilters إذا تم تمريرها (الطريقة الجديدة)، وإلا قراءة الفلاتر من الستور (الطريقة القديمة)
+      const activeFilters = urlFilters || get().filters;
 
-      const parsedProducts: PlatformProduct[] = platform === 'salla'
-        ? (Array.isArray(rawResponse?.data) ? rawResponse.data as SallaProductItem[] : [])
-        : (Array.isArray(rawResponse?.results) ? rawResponse.results as ZidProductItem[] : []);
+      Object.entries(activeFilters).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          cleanParams[key] = val;
+        }
+      });
 
-      const pagination = extractPagination(rawResponse, { page, pageSize: 15 });
+      const response = await productService.getProducts(cleanParams);
+
+      const parsedProducts = response?.data as PlatformProduct[] || [];
+      const pagination = response?.pagination || DEFAULT_PAGINATION;
 
       set({ products: parsedProducts, pagination, loading: false });
     } catch (err: any) {
@@ -68,9 +103,18 @@ export const useProductStore = create<ProductState>((set, get) => ({
     get().fetchProducts(platform, page);
   },
 
+  setFilter: (key, value) => {
+    set((state) => ({
+      filters: { ...state.filters, [key]: value }
+    }));
+  },
+
+  resetFilters: () => {
+    set({ filters: DEFAULT_FILTERS });
+  },
+
   fetchProductById: async (platform, productId) => {
     try {
-      // تفريغ الحالة القديمة لتجنب (Stale Data) وبدء التحميل
       set({ loadingDetail: true, errorDetail: null, selectedProduct: null });
       
       const rawResponse = await productService.getProductById(productId);
@@ -88,8 +132,38 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
+  updateProduct: async (platform, productId, data) => {
+    try {
+      set({ loadingDetail: true, errorDetail: null });
+      
+      const response = await productService.updateProduct(productId, data);
+      
+      let parsedDetails: PlatformProduct;
+      if (platform === 'salla') {
+        parsedDetails = (response?.data ? response.data : response) as SallaProductItem;
+      } else {
+        parsedDetails = response as ZidProductItem;
+      }
+
+      // تحديث selectedProduct وتحديث قائمة المنتجات الحالية أيضاً لمنع اختلاف البيانات بالواجهة
+      set((state) => {
+        const updatedProducts = state.products.map((p) => {
+          const pId = String(p.id);
+          const targetId = String(productId);
+          if (pId === targetId) {
+            return { ...p, ...data };
+          }
+          return p;
+        });
+        return { selectedProduct: parsedDetails, products: updatedProducts, loadingDetail: false };
+      });
+    } catch (err: any) {
+      set({ errorDetail: err.message || 'فشل تعديل المنتج', loadingDetail: false });
+      throw err;
+    }
+  },
+
   clearSelectedProduct: () => {
-    // تفريغ الذاكرة عند الخروج من صفحة التفاصيل
     set({ selectedProduct: null, errorDetail: null });
   }
 }));

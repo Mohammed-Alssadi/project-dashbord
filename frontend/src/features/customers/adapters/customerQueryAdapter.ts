@@ -1,10 +1,3 @@
-import { useAuthStore } from '@/features/auth/store/authStore';
-
-export interface PaginationParams {
-  page?: number;
-  pageSize?: number;
-}
-
 export interface PaginationMeta {
   currentPage: number;
   totalPages: number;
@@ -14,89 +7,32 @@ export interface PaginationMeta {
   hasPrev: boolean;
 }
 
-/**
- * Builds request query parameters in a platform-agnostic way.
- */
-export const buildCustomerParams = (
-  params: PaginationParams
-): Record<string, any> => {
-  const page = params.page || 1;
-  const limit = params.pageSize || 15;
-  const platform = useAuthStore.getState().user?.platform;
-
-  if (platform === 'salla') {
-    return {
-      page,
-      per_page: limit,
-    };
-  }
-
-  // Default to Zid (page_size)
-  return {
-    page,
-    page_size: limit,
-  };
+const DEFAULT_PAGINATION: PaginationMeta = {
+  currentPage: 1,
+  totalPages: 1,
+  totalCount: 0,
+  perPage: 15,
+  hasNext: false,
+  hasPrev: false,
 };
 
-/**
- * Extracts unified pagination metadata by automatically detecting the response format.
- */
-export const extractPagination = (
-  response: any,
-  currentParams: PaginationParams
-): PaginationMeta => {
-  const page = currentParams.page || 1;
-  const pageSize = currentParams.pageSize || 15;
-
-  // Detect Zid format
-  if (response && response.total_customers_count !== undefined) {
-    const totalCount = response.total_customers_count || 0;
-    const totalPages = Math.ceil(totalCount / pageSize) || 1;
-    
-    return {
-      currentPage: page,
-      totalPages: totalPages,
-      totalCount,
-      perPage: pageSize,
-      hasNext: page < totalPages,
-      hasPrev: page > 1,
-    };
-  }
-
-  // Detect Zid alternative format
-  if (response && (response.count !== undefined || response.next !== undefined)) {
-    const totalCount = response.count || 0;
-    return {
-      currentPage: page,
-      totalPages: Math.ceil(totalCount / pageSize),
-      totalCount,
-      perPage: pageSize,
-      hasNext: !!response.next,
-      hasPrev: !!response.previous,
-    };
-  }
-
-  // Detect Salla format
-  if (response && response.pagination) {
-    const p = response.pagination || {};
-    const currentPage = p.currentPage || page;
-    const totalPages = p.totalPages || 1;
-    return {
-      currentPage,
-      totalPages,
-      totalCount: p.total || p.count || 0,
-      perPage: p.perPage || pageSize,
-      hasNext: currentPage < totalPages,
-      hasPrev: currentPage > 1,
-    };
-  }
-
+export function buildCustomerParams(options: { page: number; pageSize?: number }): Record<string, any> {
   return {
-    currentPage: page,
-    totalPages: 1,
-    totalCount: 0,
-    perPage: pageSize,
-    hasNext: false,
-    hasPrev: false,
+    page: options.page,
+    limit: options.pageSize || 15,
   };
-};
+}
+
+export function extractPagination(rawResponse: any, _options?: { page: number; pageSize?: number }): PaginationMeta {
+  if (rawResponse?.pagination) {
+    return {
+      currentPage: rawResponse.pagination.currentPage || rawResponse.pagination.current_page || 1,
+      totalPages: rawResponse.pagination.totalPages || rawResponse.pagination.total_pages || 1,
+      totalCount: rawResponse.pagination.totalCount || rawResponse.pagination.total || rawResponse.count || 0,
+      perPage: rawResponse.pagination.perPage || rawResponse.pagination.per_page || 15,
+      hasNext: rawResponse.pagination.hasNext || !!rawResponse.next,
+      hasPrev: rawResponse.pagination.hasPrev || !!rawResponse.previous,
+    };
+  }
+  return DEFAULT_PAGINATION;
+}

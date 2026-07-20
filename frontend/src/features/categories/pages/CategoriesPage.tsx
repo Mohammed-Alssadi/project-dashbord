@@ -21,6 +21,7 @@ import {
   AlertCircle,
   Folder
 } from "lucide-react"
+import { CategoryFiltersBar } from "../components/CategoryFiltersBar"
 import type { SallaCategoryItem, ZidCategoryItem } from "../types/category"
 
 export function CategoriesPage() {
@@ -34,16 +35,32 @@ export function CategoriesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const pageParam = parseInt(searchParams.get("page") || "1", 10)
 
+  const urlFilters = {
+    search: searchParams.get("search") || "",
+    status: searchParams.get("status") || "",
+    is_published: searchParams.get("is_published") || "",
+  };
+
   useEffect(() => {
-    fetchCategories(platform, pageParam);
-  }, [fetchCategories, platform, pageParam]);
+    // الطريقة القديمة
+    // fetchCategories(platform, pageParam);
+    
+    // الطريقة الجديدة
+    fetchCategories(platform, pageParam, urlFilters);
+  }, [fetchCategories, platform, pageParam, urlFilters.search, urlFilters.status, urlFilters.is_published]);
 
   const handleRefresh = () => {
-    fetchCategories(platform, pageParam);
+    fetchCategories(platform, pageParam, urlFilters);
   };
 
   const handlePageChange = (page: number) => {
-    setSearchParams({ page: page.toString() });
+    const newParams = new URLSearchParams(searchParams);
+    if (page === 1) {
+      newParams.delete("page");
+    } else {
+      newParams.set("page", page.toString());
+    }
+    setSearchParams(newParams);
   };
 
   return (
@@ -81,6 +98,9 @@ export function CategoriesPage() {
       
       {/* حاوية إطار الجدول */}
       <div className="border border-border/40 rounded-lg bg-card shadow-sm overflow-hidden w-full">
+        {/* شريط البحث والفلترة */}
+        <CategoryFiltersBar platform={platform} />
+
         <Table>
           <TableHeader className="bg-muted/20">
             <TableRow>

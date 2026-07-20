@@ -1,3 +1,4 @@
+// Routes config for the app
 import { lazy, Suspense } from "react"
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { PageLoader } from "@/components/PageLoader"
@@ -12,7 +13,6 @@ import { DashboardRouteErrorBoundary } from "./components/DashboardRouteErrorBou
 const WelcomePage = lazy(() =>
   import("@/features/welcome").then((module) => ({ default: module.WelcomePage }))
 )
-
 const DashboardPage = lazy(() =>
   import("@/features/dashboard/pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))
 )
@@ -21,6 +21,9 @@ const ProductsPage = lazy(() =>
 )
 const ProductDetailPage = lazy(() =>
   import("@/features/products").then((module) => ({ default: module.ProductDetailPage }))
+)
+const ProductEditPage = lazy(() =>
+  import("@/features/products").then((module) => ({ default: module.ProductEditPage }))
 )
 const CategoriesPage = lazy(() =>
   import("@/features/categories/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage }))
@@ -134,6 +137,14 @@ const router = createBrowserRouter([
                     element: (
                       <Suspense fallback={<PageLoader fullScreen={false} />}>
                         <ProductDetailPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
+                    path: "/products/:id/edit",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <ProductEditPage />
                       </Suspense>
                     ),
                   },

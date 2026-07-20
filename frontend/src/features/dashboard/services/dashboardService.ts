@@ -1,7 +1,5 @@
 import { apiClient } from '@/services/apiClient';
-import { extractPagination as extractCustomerPagination } from '@/features/customers/adapters/customerQueryAdapter';
-import { extractPagination as extractProductPagination } from '@/features/products/adapters/productQueryAdapter';
-import { extractPagination as extractCategoryPagination } from '@/features/categories/adapters/categoryQueryAdapter';
+
 
 export interface DashboardStats {
   totalCustomers: number;
@@ -33,9 +31,9 @@ export const dashboardService = {
       const categoriesData = results[2].status === 'fulfilled' ? results[2].value.data : null;
       const ordersData = results[3].status === 'fulfilled' ? results[3].value.data : null;
 
-      const totalCustomers = customersData ? extractCustomerPagination(customersData, { pageSize: 1 }).totalCount : 0;
-      const totalProducts = productsData ? extractProductPagination(productsData, { pageSize: 1 }).totalCount : 0;
-      const totalCategories = categoriesData ? extractCategoryPagination(categoriesData, { pageSize: 1 }).totalCount : 0;
+      const totalCustomers = customersData?.pagination?.totalCount || 0;
+      const totalProducts = productsData?.pagination?.totalCount || 0;
+      const totalCategories = categoriesData?.pagination?.totalCount || 0;
       
       let totalOrders = 0;
       if (ordersData) {

@@ -6,6 +6,7 @@ import { SallaProductRow } from "../components/SallaProductRow"
 import { ZidProductRow } from "../components/ZidProductRow"
 import { ProductsPagination } from "../components/ProductsPagination"
 import { ProductsSkeleton } from "../components/ProductsSkeleton"
+import { ProductFiltersBar } from "../components/ProductFiltersBar"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -28,16 +29,33 @@ export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const pageParam = parseInt(searchParams.get("page") || "1", 10)
 
+  const urlFilters = {
+    search: searchParams.get("search") || "",
+    category_id: searchParams.get("category_id") || "",
+    status: searchParams.get("status") || "",
+    product_class: searchParams.get("product_class") || "",
+  };
+
   useEffect(() => {
-    fetchProducts(platform, pageParam);
-  }, [fetchProducts, platform, pageParam]);
+    // الطريقة القديمة (معتمدة على الستور)
+    // fetchProducts(platform, pageParam);
+    
+    // الطريقة الجديدة (معتمدة على الرابط)
+    fetchProducts(platform, pageParam, urlFilters);
+  }, [fetchProducts, platform, pageParam, urlFilters.search, urlFilters.category_id, urlFilters.status, urlFilters.product_class]);
 
   const handleRefresh = () => {
-    fetchProducts(platform, pageParam);
+    fetchProducts(platform, pageParam, urlFilters);
   };
 
   const handlePageChange = (page: number) => {
-    setSearchParams({ page: page.toString() });
+    const newParams = new URLSearchParams(searchParams);
+    if (page === 1) {
+      newParams.delete("page");
+    } else {
+      newParams.set("page", page.toString());
+    }
+    setSearchParams(newParams);
   };
 
   return (
@@ -73,6 +91,8 @@ export function ProductsPage() {
         </div>
       </div>
 
+
+
       {/* حالة الخطأ */}
       {error && !loading && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm">
@@ -85,6 +105,9 @@ export function ProductsPage() {
       <LocalErrorBoundary>
         <div className="border border-border/40 rounded-xl bg-card shadow-sm overflow-hidden w-full">
 
+          {/* شريط البحث والفلترة داخل الجدول */}
+          <ProductFiltersBar platform={platform} />
+
           <Table>
             <TableHeader className="bg-muted/20">
               <TableRow>
@@ -94,28 +117,18 @@ export function ProductsPage() {
                 <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الحالي</TableHead>
                 <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">السعر الأساسي</TableHead>
                 <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الكمية</TableHead>
-                {platform === 'zid' ? (
-                  <>
-                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الفئة (Class)</TableHead>
-                  </>
-                ) : (
-                  <>
-                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">النوع (Type)</TableHead>
-                    <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">قنوات البيع</TableHead>
-                  </>
-                )}
+                <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">التصنيف</TableHead>
                 <TableHead className="text-right text-xs font-bold text-muted-foreground py-3">الحالة</TableHead>
                 <TableHead className="text-left text-xs font-bold text-muted-foreground py-3 w-[120px]">العمليات</TableHead>
               </TableRow>
             </TableHeader>
-
+ 
             <TableBody>
               {loading ? (
                 <ProductsSkeleton rows={8} platform={platform} />
               ) : products.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-20 text-center">
+                  <TableCell colSpan={9} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3 text-muted-foreground">
                       <Package className="size-10 opacity-25" />
                       <span className="text-sm">لا توجد منتجات متوفرة بالمتجر حالياً</span>
