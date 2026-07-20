@@ -39,7 +39,6 @@ interface ProductState {
   setFilter: (key: keyof ProductFilters, value: any) => void;
   resetFilters: () => void;
   fetchProductById: (platform: 'salla' | 'zid', productId: string | number) => Promise<void>;
-  updateProduct: (platform: 'salla' | 'zid', productId: string | number, data: any) => Promise<void>;
   clearSelectedProduct: () => void;
 }
 
@@ -67,7 +66,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
   loading: true,
   error: null,
   filters: DEFAULT_FILTERS,
-  
+
   selectedProduct: null,
   loadingDetail: false,
   errorDetail: null,
@@ -78,7 +77,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
 
       // تجميع وتصفية الفلاتر النشطة (عدم إرسال قيم فارغة)
       const cleanParams: Record<string, any> = { page, limit: 15 };
-      
+
       // استخدام urlFilters إذا تم تمريرها (الطريقة الجديدة)، وإلا قراءة الفلاتر من الستور (الطريقة القديمة)
       const activeFilters = urlFilters || get().filters;
 
@@ -116,9 +115,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
   fetchProductById: async (platform, productId) => {
     try {
       set({ loadingDetail: true, errorDetail: null, selectedProduct: null });
-      
+
       const rawResponse = await productService.getProductById(productId);
-      
+
       let parsedDetails: PlatformProduct;
       if (platform === 'salla') {
         parsedDetails = (rawResponse?.data ? rawResponse.data : rawResponse) as SallaProductItem;
@@ -132,36 +131,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
-  updateProduct: async (platform, productId, data) => {
-    try {
-      set({ loadingDetail: true, errorDetail: null });
-      
-      const response = await productService.updateProduct(productId, data);
-      
-      let parsedDetails: PlatformProduct;
-      if (platform === 'salla') {
-        parsedDetails = (response?.data ? response.data : response) as SallaProductItem;
-      } else {
-        parsedDetails = response as ZidProductItem;
-      }
 
-      // تحديث selectedProduct وتحديث قائمة المنتجات الحالية أيضاً لمنع اختلاف البيانات بالواجهة
-      set((state) => {
-        const updatedProducts = state.products.map((p) => {
-          const pId = String(p.id);
-          const targetId = String(productId);
-          if (pId === targetId) {
-            return { ...p, ...data };
-          }
-          return p;
-        });
-        return { selectedProduct: parsedDetails, products: updatedProducts, loadingDetail: false };
-      });
-    } catch (err: any) {
-      set({ errorDetail: err.message || 'فشل تعديل المنتج', loadingDetail: false });
-      throw err;
-    }
-  },
 
   clearSelectedProduct: () => {
     set({ selectedProduct: null, errorDetail: null });

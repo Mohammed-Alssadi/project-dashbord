@@ -33,7 +33,8 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     // معالجة خطأ 401 (انتهاء الجلسة أو غير مصرح)
-    if (error.response?.status === 401) {
+    const isProxyOrUpload = error.config?.url?.includes('/api/proxy') || error.config?.url?.includes('/api/upload');
+    if (error.response?.status === 401 && !isProxyOrUpload) {
       toast.error('انتهت الجلسة، يرجى تسجيل الدخول مجدداً');
       
       // تحديث حالة تسجيل الدخول في الستور المركزي لإطلاق التوجيه الناعم (Soft Redirect)
@@ -44,12 +45,57 @@ apiClient.interceptors.response.use(
     }
 
     // إظهار إشعار (Toast) لأي خطأ قادم من الباك اند (مهما كان نوع الطلب)
-    let backendMessage = error.response?.data?.message;
-    if (typeof backendMessage === 'object' && backendMessage !== null) {
-      backendMessage = backendMessage.description || backendMessage.name || JSON.stringify(backendMessage);
+    const data = error.response?.data;
+    let extractedMessage = '';
+
+    if (data) {
+      // 1. إذا كان الكائن يحتوي على رسالة نصية مباشرة
+      if (typeof data.message === 'string') {
+        extractedMessage = data.message;
+      }
+      // 2. إذا كانت رسالة سلة/زد المهيكلة (مثلاً: message: { description: "..." })
+      else if (data.message && typeof data.message === 'object') {
+        extractedMessage = data.message.description || data.message.name || data.message.message || JSON.stringify(data.message);
+      }
+      // 3. إذا كان هناك حقل detail (مثل ردود زد)
+      else if (typeof data.detail === 'string') {
+        extractedMessage = data.detail;
+      }
+      // 4. إذا كان هناك حقل error مباشر
+      else if (typeof data.error === 'string') {
+        extractedMessage = data.error;
+      }
+      // 5. إذا كان هناك حقل details يحتوي على معلومات أعمق (مثل رد الرفع المخصص)
+      else if (data.details) {
+        const details = data.details;
+        if (typeof details === 'string') {
+          extractedMessage = details;
+        } else if (typeof details === 'object') {
+          // استخراج تفاصيل أخطاء الحقول مثل {"id": ["هذا الحقل مطلوب"]} أو {"image": [...]}
+          const fieldErrors = Object.entries(details)
+            .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : JSON.stringify(val)}`)
+            .join(' | ');
+          extractedMessage = fieldErrors || JSON.stringify(details);
+        }
+      }
+      // 6. إذا كان الرد عبارة عن أخطاء حقول مباشرة بالكامل (مثل {"image": ["لم يتم إرسال أي ملف."]})
+      else if (typeof data === 'object') {
+        const fieldErrors = Object.entries(data)
+          .filter(([key]) => key !== 'success')
+          .map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : JSON.stringify(val)}`)
+          .join(' | ');
+        if (fieldErrors) {
+          extractedMessage = fieldErrors;
+        }
+      }
     }
-    const defaultErrorMessage = 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً';
-    toast.error(typeof backendMessage === 'string' ? backendMessage : defaultErrorMessage);
+
+    // إذا لم ننجح في استخراج رسالة، نستخدم الخطأ الافتراضي من المتصفح/أكسيوس
+    if (!extractedMessage) {
+      extractedMessage = error.message || 'حدث خطأ غير متوقع، يرجى المحاولة لاحقاً';
+    }
+
+    toast.error(extractedMessage, { duration: 6000 });
 
     return Promise.reject(error);
   }

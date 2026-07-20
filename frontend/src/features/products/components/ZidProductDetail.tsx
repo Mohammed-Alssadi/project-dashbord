@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ZidProductDetails } from '../types/product';
-import { extractName } from '../utils/productUtils';
+import { extractName } from '../utils/functions/extractName';
 import { Package, Store, Sliders, Star, LineChart } from 'lucide-react';
 
 interface ZidProductDetailProps {

@@ -39,7 +39,7 @@ export const handleCallback = async (req, res) => {
   const state = req.query.state || req.body?.state;
   const savedState = req.cookies?.[`${platform}_oauth_state`];
 
-  console.log(`[${platform.toUpperCase()} Callback Debug] Code received:`, code ? 'Yes' : 'No', 'Query:', req.query, 'Body:', req.body, 'Cookies:', req.cookies);
+  // console.log(`[${platform.toUpperCase()} Callback Debug] Code received:`, code ? 'Yes' : 'No', 'Query:', req.query, 'Body:', req.body, 'Cookies:', req.cookies);
 
   // مسح كوكي الـ state لحماية الجلسة
   res.clearCookie(`${platform}_oauth_state`, {

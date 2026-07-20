@@ -1,4 +1,5 @@
 import axios from 'axios';
+import fs from 'fs';
 import { normalizeQueryParams, normalizeProxyResponse } from '../utils/proxyHelper.js';
 
 /**
@@ -7,7 +8,7 @@ import { normalizeQueryParams, normalizeProxyResponse } from '../utils/proxyHelp
  * @param {object} query - معاملات الاستعلام
  * @returns {string} المسار المعدل
  */
-const mapZidPath = (path, query) => {
+const mapZidPath = (path, query, method) => {
   // ملاحظة: البحث في زد يستخدم الآن معامل 'name' على مسار /products مباشرة
   // ولا نحتاج لتوجيه إلى /products/search
 
@@ -37,10 +38,20 @@ const mapZidPath = (path, query) => {
       }
     }
 
+    // إلحاق شرطة مائلة في نهاية المسار لمنع أخطاء الـ 404 في خوادم زد لعمليات التحديث
+    if (!newPath.endsWith('/')) {
+      newPath += '/';
+    }
+
     return newPath;
   }
 
-  return path;
+  // للتأكد من وجود شرطة مائلة في نهاية كافة مسارات زد الأخرى
+  let finalPath = path;
+  if (!finalPath.endsWith('/')) {
+    finalPath += '/';
+  }
+  return finalPath;
 };
 
 /**
@@ -63,69 +74,13 @@ export const dynamicProxy = async (req, res) => {
     }
 
     // ─── حماية SSRF (القائمة البيضاء للمسارات المسموحة) ──────────────────────
-    const allowedPrefixes = ['/products', '/categories', '/orders', '/customers', '/store', '/profile'];
+    const allowedPrefixes = ['/products', '/categories', '/orders', '/customers', '/store', '/profile', '/attributes', '/badges'];
     const isAllowed = path === '' || allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`));
 
     if (!isAllowed) {
       console.warn(`[Security] Blocked unauthorized proxy access to path: ${path} by user ${req.user.id}`);
       return res.status(403).json({ success: false, message: 'مسار غير مصرح به (Proxy Whitelist)' });
     }
-    // ─── اعتراض طلب رفع صورة بالرابط (Image Upload by URL Helper) ─────────────
-    if (req.method === 'POST' && path.match(/\/products\/[^/]+\/images-by-url\/?/)) {
-      const productId = path.split('/')[2];
-      const { imageUrl } = req.body;
-      if (!imageUrl) {
-        return res.status(400).json({ success: false, message: 'رابط الصورة مطلوب' });
-      }
-
-      console.log(`[Proxy Image Upload By URL] Fetching image from URL: ${imageUrl} for product ${productId}`);
-      
-      try {
-        const imgResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imgBuffer = Buffer.from(imgResponse.data);
-        const contentType = imgResponse.headers['content-type'] || 'image/jpeg';
-        
-        let fileName = 'image.jpg';
-        if (contentType.includes('png')) fileName = 'image.png';
-        else if (contentType.includes('webp')) fileName = 'image.webp';
-        else if (contentType.includes('gif')) fileName = 'image.gif';
-
-        const FormData = (await import('form-data')).default;
-        const form = new FormData();
-        form.append('image', imgBuffer, {
-          filename: fileName,
-          contentType: contentType
-        });
-
-        let uploadUrl = '';
-        let headers = {
-          'Authorization': `Bearer ${accessToken}`,
-          ...form.getHeaders()
-        };
-
-        if (userPlatform === 'salla') {
-          uploadUrl = `https://api.salla.dev/admin/v2/products/${productId}/images`;
-        } else if (userPlatform === 'zid') {
-          uploadUrl = `https://api.zid.sa/v1/products/${productId}/images/`;
-          if (managerToken) headers['X-Manager-Token'] = managerToken;
-          if (req.user.platformStoreId) headers['Store-Id'] = String(req.user.platformStoreId);
-          headers['Role'] = 'Manager';
-        }
-
-        console.log(`[Proxy Image Upload By URL] Uploading to platform: ${uploadUrl}`);
-        const uploadResponse = await axios.post(uploadUrl, form, { headers });
-        
-        res.status(200).json({
-          success: true,
-          data: uploadResponse.data
-        });
-        return;
-      } catch (err) {
-        console.error('[Proxy Image Upload By URL Error]:', err.message);
-        return res.status(500).json({ success: false, message: 'فشل رفع الصورة للمنصة', error: err.message });
-      }
-    }
-
     // ─── اعتراض حالة نفاد المخزون لمتجر سلة لمنع الـ 422 وإرجاع مصفوفة فارغة بشكل سليم ──────────────────
     if (userPlatform === 'salla' && req.query.status === 'out_of_stock' && (originalPath === '/products' || originalPath === '/products/')) {
       const mockResponse = {
@@ -178,11 +133,11 @@ export const dynamicProxy = async (req, res) => {
     let baseUrl = '';
 
     // ترجمة وتوحيد معاملات الاستعلام المرسلة من الفرونت إند لمسار المنتجات والأقسام
-    const isListPath = 
+    const isListPath =
       originalPath === '/products' || originalPath === '/products/' ||
       originalPath === '/categories' || originalPath === '/categories/';
-    
-    const normalizedQuery = isListPath 
+
+    const normalizedQuery = isListPath
       ? normalizeQueryParams(req.query, userPlatform, originalPath)
       : req.query;
 
@@ -197,7 +152,7 @@ export const dynamicProxy = async (req, res) => {
       headers['Role'] = 'Manager';
 
       // إعادة كتابة المسار لمنصة زد بذكاء باستخدام معاملات الاستعلام الموحدة
-      path = mapZidPath(path, normalizedQuery);
+      path = mapZidPath(path, normalizedQuery, req.method);
     } else {
       return res.status(400).json({ success: false, message: 'منصة غير مدعومة' });
     }
@@ -217,9 +172,8 @@ export const dynamicProxy = async (req, res) => {
       validateStatus: () => true
     };
 
-    // إرسال الـ Body فقط إذا كان الطلب ليس GET أو HEAD لمنع رفض الطلبات
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      // تمرير الـ raw body إن وجد، وإلا تمرير الكائن
+    // إرسال الـ Body فقط في طلبات الإنشاء والتحديث لمنع رفض طلبات DELETE من خوادم سلة
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       axiosConfig.data = req.body;
     }
 
@@ -236,7 +190,7 @@ export const dynamicProxy = async (req, res) => {
             const mockResponse = {
               success: true,
               data: [],
-              pagination: {
+              pagination:{
                 currentPage: 1,
                 totalPages: 1,
                 totalCount: 0,
@@ -253,7 +207,7 @@ export const dynamicProxy = async (req, res) => {
             });
             return res.send(Buffer.from(JSON.stringify(mockResponse), 'utf8'));
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       console.error(`[Proxy Request Failed] Method: ${req.method}, Target: ${targetUrl}, Status: ${response.status}`);
@@ -261,7 +215,7 @@ export const dynamicProxy = async (req, res) => {
         console.error(`[Proxy Request Failed Params]:`, JSON.stringify(axiosConfig.params));
         const errText = response.data.toString('utf8');
         console.error(`[Proxy Request Failed Body]:`, errText);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // 5. معالجة ترويسات الاستجابة لإرسالها للفرونت إند (بما فيها Pagination)
@@ -284,17 +238,17 @@ export const dynamicProxy = async (req, res) => {
     const isJson = contentType.includes('application/json');
     // isListPath is already declared above
 
-    if (req.method === 'GET' && response.status >= 200 && response.status < 300 && isJson && isListPath) {
+    if (req.method === 'GET' && response.status >= 200 && response.status < 300 && isJson) {
       try {
         const textData = response.data.toString('utf8');
         const jsonData = JSON.parse(textData);
-        
-        // تمت إزالة طباعة الردود الناجحة لتنظيف التيرمينال
 
-        const normalizedResponse = normalizeProxyResponse(jsonData, userPlatform, originalPath, req.query);
-        responseData = Buffer.from(JSON.stringify(normalizedResponse), 'utf8');
+        if (isListPath) {
+          const normalizedResponse = normalizeProxyResponse(jsonData, userPlatform, originalPath, req.query);
+          responseData = Buffer.from(JSON.stringify(normalizedResponse), 'utf8');
+        }
       } catch (e) {
-        console.error('[Proxy Response Normalization Error]:', e.message);
+        console.error('[Proxy Response Parse Error]:', e.message);
       }
     }
 

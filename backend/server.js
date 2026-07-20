@@ -19,6 +19,7 @@ import authRoutes from './src/routes/authRoutes.js';
 import storeRoutes from './src/routes/storeRoutes.js';
 import merchantRoutes from './src/routes/merchant.routes.js';
 import proxyRoutes from './src/routes/proxyRoutes.js';
+import uploadRoutes from './src/routes/uploadRoutes.js';
 import { protect } from './src/middlewares/authMiddleware.js';
 import { getStoreProfile } from './src/controllers/storeController.js';
 
@@ -74,6 +75,9 @@ app.use('/auth', oauthLimiter, authRoutes);
 app.use('/api/proxy', proxyRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/merchant', merchantRoutes);
+
+// رفع الملفات — يجب تسجيله بعد json/urlencoded لأن busboy يعمل على raw stream مستقل
+app.use('/api/upload', uploadRoutes);
 
 // ─── فحص جاهزية الخادم مع التحقق من DB (Health Check) ─────────────────────
 app.get('/health', async (req, res) => {

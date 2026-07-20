@@ -1,7 +1,7 @@
 import { TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Package, ExternalLink, Eye, Edit, Trash2 } from "lucide-react"
+import { Package, ExternalLink, Eye, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import type { SallaProductItem } from "../types/product"
 
@@ -24,6 +24,7 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
           <img
             src={imageUrl}
             alt={product.name}
+            referrerPolicy="no-referrer"
             className="size-10 rounded-lg border border-border/60 object-cover bg-muted/30 shrink-0"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
@@ -118,17 +119,19 @@ export function SallaProductRow({ product }: SallaProductRowProps) {
               <Eye className="size-3.5" />
             </Link>
           </Button>
+
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 rounded-lg hover:bg-amber-500/10 hover:text-amber-500 transition-colors text-muted-foreground"
+            className="h-7 w-7 rounded-lg hover:bg-muted/80 text-muted-foreground hover:text-foreground"
             title="تعديل المنتج"
             asChild
           >
-            <Link to={`/products/${product.id}/edit`}>
-              <Edit className="w-3.5 h-3.5" />
+            <Link to={`/products/edit/${product.id}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
             </Link>
           </Button>
+
           <Button
             variant="ghost"
             size="icon"

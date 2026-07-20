@@ -8,7 +8,7 @@ import { SallaProductDetailSkeleton } from '../components/SallaProductDetailSkel
 import { ZidProductDetailSkeleton } from '../components/ZidProductDetailSkeleton';
 import type { SallaProductDetails, ZidProductDetails } from '../types/product';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, AlertCircle, Loader2, RefreshCw, Edit } from 'lucide-react';
+import { ChevronRight, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,16 +52,7 @@ export function ProductDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {platform === 'zid' && (
-            <Button
-              onClick={() => navigate(`/products/${id}/edit`)}
-              className="flex items-center gap-1.5 rounded-xl text-xs font-semibold shadow-sm shrink-0 bg-purple-600 hover:bg-purple-700 text-white h-8"
-              size="sm"
-            >
-              <Edit className="size-3.5" />
-              تعديل المنتج
-            </Button>
-          )}
+
           <Button
             onClick={handleRefresh}
             disabled={loadingDetail}

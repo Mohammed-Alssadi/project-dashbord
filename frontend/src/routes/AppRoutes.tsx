@@ -23,8 +23,9 @@ const ProductDetailPage = lazy(() =>
   import("@/features/products").then((module) => ({ default: module.ProductDetailPage }))
 )
 const ProductEditPage = lazy(() =>
-  import("@/features/products").then((module) => ({ default: module.ProductEditPage }))
+  import("@/features/products/pages/ProductEditPage").then((module) => ({ default: module.default }))
 )
+
 const CategoriesPage = lazy(() =>
   import("@/features/categories/pages/CategoriesPage").then((module) => ({ default: module.CategoriesPage }))
 )
@@ -76,6 +77,14 @@ const router = createBrowserRouter([
     children: [
       {
         path: "/",
+        loader: async () => {
+          try {
+            await useAuthStore.getState().fetchUser();
+          } catch (e) {
+            // تجاهل الأخطاء لصفحة الهبوط لعدم منع تحميلها
+          }
+          return null;
+        },
         element: (
           <Suspense fallback={<PageLoader />}>
             <WelcomePage />
@@ -133,6 +142,15 @@ const router = createBrowserRouter([
                     ),
                   },
                   {
+                    // تعديل المنتج يجب أن يكون قبل /products/:id لمنع تفسير 'edit' كـ ID
+                    path: "/products/edit/:id",
+                    element: (
+                      <Suspense fallback={<PageLoader fullScreen={false} />}>
+                        <ProductEditPage />
+                      </Suspense>
+                    ),
+                  },
+                  {
                     path: "/products/:id",
                     element: (
                       <Suspense fallback={<PageLoader fullScreen={false} />}>
@@ -140,14 +158,7 @@ const router = createBrowserRouter([
                       </Suspense>
                     ),
                   },
-                  {
-                    path: "/products/:id/edit",
-                    element: (
-                      <Suspense fallback={<PageLoader fullScreen={false} />}>
-                        <ProductEditPage />
-                      </Suspense>
-                    ),
-                  },
+
                   {
                     path: "/categories",
                     element: (

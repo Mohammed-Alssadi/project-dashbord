@@ -6,7 +6,7 @@ const sallaConfig = {
   clientId: process.env.SALLA_CLIENT_ID,
   clientSecret: process.env.SALLA_CLIENT_SECRET,
   redirectUri: process.env.SALLA_REDIRECT_URI || `${process.env.APP_URL}/auth/salla/callback`,
-  scopes: process.env.SALLA_SCOPES || 'offline_access read_products read_categories',
+  scopes: process.env.SALLA_SCOPES || 'offline_access read_products read_categories write_products write_categories',
   authBaseUrl: process.env.SALLA_AUTH_BASE_URL || 'https://accounts.salla.sa',
   apiBaseUrl: process.env.SALLA_API_BASE_URL || 'https://api.salla.dev/admin/v2'
 };
