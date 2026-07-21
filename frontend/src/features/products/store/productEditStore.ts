@@ -28,11 +28,13 @@ interface ProductEditState {
   endpointErrors: EndpointErrors;        // أخطاء النهايات الاختيارية
   validationErrors: Record<string, string>; // أخطاء التحقق من المدخلات قبل الحفظ
 
+
   loadProductData: (productId: string | number, platform?: 'salla' | 'zid') => Promise<void>;
   resetStore: () => void;
   updateProductField: (field: string, value: any) => void;
   updateVariantField: (variantId: string | number, field: string, value: any) => void;
   saveProductData: (formData: ProductFormData) => Promise<void>;
+  refreshSallaAttributes: (productId: string) => Promise<void>;
 }
 
 // ── الحالة الابتدائية الفارغة ─────────────────────────────────────────────────
@@ -47,11 +49,14 @@ const EMPTY_STATE = {
   error: null as string | null,
   endpointErrors: {} as EndpointErrors,
   validationErrors: {} as Record<string, string>,
+
 };
 
 // ── الـ Store الرئيسي ─────────────────────────────────────────────────────────
 export const useProductEditStore = create<ProductEditState>((set, get) => ({
   ...EMPTY_STATE,
+
+
 
   loadProductData: async (productId, platform) => {
     const activePlatform = platform ?? (useAuthStore.getState().user?.platform as 'salla' | 'zid') ?? 'zid';
@@ -141,74 +146,22 @@ export const useProductEditStore = create<ProductEditState>((set, get) => ({
         errors.attributes = 'فشل جلب خصائص المنتج';
       }
     } else {
-      // سلة: لا تملك سلة مساراً عاماً لجلب الصفات (Attributes). للحصول على قائمة صفات المتجر وقيمها كاملة،
-      // نقوم بجلب قائمة المنتجات الأخرى واستخراج الخيارات والقيم المتاحة ودمجها بذكاء.
-      let allStoreOptions: any[] = [];
-      try {
-        const { apiClient } = await import('../../../services/apiClient');
-        const productsRes = await apiClient.get('/api/proxy/products', { params: { per_page: 50 } });
-        const productsList = productsRes.data?.data || productsRes.data || [];
-        
-        const optionsMap = new Map<string, any>();
-        
-        // 1. إضافة خيارات المنتج الحالي أولاً
-        if (Array.isArray(productData?.options)) {
-          productData.options.forEach((opt: any) => {
-            const optName = typeof opt.name === 'object' ? (opt.name.ar || opt.name.en || '') : String(opt.name || '');
-            if (optName) {
-              optionsMap.set(optName, JSON.parse(JSON.stringify(opt)));
-            }
-          });
-        }
-
-        // 2. استخراج ودمج الخيارات من المنتجات الأخرى بالمتجر
-        if (Array.isArray(productsList)) {
-          productsList.forEach((prod: any) => {
-            if (String(prod.id) === String(productId)) return;
-            
-            if (Array.isArray(prod.options)) {
-              prod.options.forEach((opt: any) => {
-                const optName = typeof opt.name === 'object' ? (opt.name.ar || opt.name.en || '') : String(opt.name || '');
-                if (!optName) return;
-
-                if (!optionsMap.has(optName)) {
-                  optionsMap.set(optName, JSON.parse(JSON.stringify(opt)));
-                } else {
-                  const existingOpt = optionsMap.get(optName);
-                  const existingVals = existingOpt.values || [];
-                  const newVals = opt.values || [];
-                  const mergedVals = [...existingVals];
-
-                  newVals.forEach((nv: any) => {
-                    const nvName = typeof nv.name === 'object' ? (nv.name.ar || nv.name.en || '') : String(nv.name || '');
-                    const exists = existingVals.some((ev: any) => {
-                      const evName = typeof ev.name === 'object' ? (ev.name.ar || ev.name.en || '') : String(ev.name || '');
-                      return evName === nvName;
-                    });
-                    if (!exists) {
-                      mergedVals.push(nv);
-                    }
-                  });
-                  existingOpt.values = mergedVals;
-                }
-              });
-            }
-          });
-        }
-        allStoreOptions = Array.from(optionsMap.values());
-      } catch (e) {
-        console.warn('Failed to extract store options from Salla products list:', e);
-        allStoreOptions = Array.isArray(productData?.options) ? productData.options : [];
-      }
-      attributes = allStoreOptions;
+      // إصلاح #9 — سلة: استخدام خيارات المنتج الحالي فقط
+      // جلب 50 منتج ودمج خياراتها يُلوّث IDs الخيارات ويُسبّب رفض سلة للطلبات
+      attributes = Array.isArray(productData?.options) ? productData.options : [];
     }
 
+    // إصلاح #20 (مشكلة #66): فشل جلب التصنيفات — رسالة واضحة بصبب المشكلة
     let categories: any[] = [];
     if (categoriesResult.status === 'fulfilled' && categoriesResult.value) {
       categories = extractArray(categoriesResult);
     } else if (categoriesResult.status === 'rejected') {
-      errors.categories = 'فشل جلب تصنيفات المتجر';
+      const msg = 'فشل جلب تصنيفات المتجر — لن تتمكن من تغيير التصنيف. تحقق من الاتصال';
+      errors.categories = msg;
+      toast.warning(msg);
     }
+
+
 
     const unifiedProduct = activePlatform === 'salla'
       ? ProductAdapter.fromSalla(productData)
@@ -292,8 +245,35 @@ export const useProductEditStore = create<ProductEditState>((set, get) => ({
     const state = get();
     if (!state.unifiedProduct || !state.platform) return;
 
+    // Guard: منع الاستدعاء المزدوج عند الضغط السريع على زر الحفظ
+    if (state.isSaving) {
+      console.warn('[saveProductData] Already saving — ignoring duplicate call');
+      return;
+    }
+
     set({ isSaving: true, validationErrors: {} });
     const productId = state.unifiedProduct.id;
+
+    // إصلاح #37: تأخير متسلسل بين طلبات سلة لتجنب تجاوز Rate Limit (120 req/min)
+    const sallaWriteDelay = () => new Promise<void>(r => setTimeout(r, 300));
+
+    // تنفيذ مصفوفة مهام بالتتابع مع تأخير بين كل طلب لتجنب Rate Limit
+    // الإصلاح: استخدام index بدلاً من tasks.indexOf(task) — O(N) بدل O(N²)
+    const runSequentially = async <T>(tasks: (() => Promise<T>)[]): Promise<PromiseSettledResult<T>[]> => {
+      const results: PromiseSettledResult<T>[] = [];
+      for (let i = 0; i < tasks.length; i++) {
+        try {
+          const value = await tasks[i]();
+          results.push({ status: 'fulfilled', value });
+        } catch (reason) {
+          results.push({ status: 'rejected', reason });
+        }
+        if (i < tasks.length - 1) {
+          await sallaWriteDelay();
+        }
+      }
+      return results;
+    };
 
     try {
       if (state.platform === 'zid') {
@@ -303,11 +283,11 @@ export const useProductEditStore = create<ProductEditState>((set, get) => ({
         await productEditService.updateProductBasicInfo(productId, basicPayload, state.platform);
 
         // 1.5. مزامنة الأقسام لزد
-        const originalCatIds = (state.unifiedProduct.categories || []).map(c => Number(c.id));
-        const newCatIds = (formData.categories || []).map(c => Number(c.id));
+        const originalCatIds = (state.unifiedProduct?.categories || []).map((c: any) => Number(c.id));
+        const newCatIds = (formData.categories || []).map((c: any) => Number(c.id));
 
-        const toRemove = originalCatIds.filter(id => !newCatIds.includes(id));
-        const toAdd = newCatIds.filter(id => !originalCatIds.includes(id));
+        const toRemove = originalCatIds.filter((id: number) => !newCatIds.includes(id));
+        const toAdd = newCatIds.filter((id: number) => !originalCatIds.includes(id));
 
         for (const catId of toRemove) {
           try {
@@ -326,9 +306,9 @@ export const useProductEditStore = create<ProductEditState>((set, get) => ({
 
         // 2. مزامنة وتعديل وحذف المتغيرات
         if (formData.variants && formData.variants.length > 0) {
-          const originalVariantIds = state.unifiedProduct.variants.map(v => String(v.id));
-          const currentVariantIds = formData.variants.map(v => String(v.id));
-          const deletedVariantIds = originalVariantIds.filter(id => !currentVariantIds.includes(id));
+          const originalVariantIds = (state.unifiedProduct?.variants || []).map((v: any) => String(v.id));
+          const currentVariantIds = formData.variants.map((v: any) => String(v.id));
+          const deletedVariantIds = originalVariantIds.filter((id: string) => !currentVariantIds.includes(id));
 
           // Delete removed variants
           for (const varId of deletedVariantIds) {
@@ -350,47 +330,88 @@ export const useProductEditStore = create<ProductEditState>((set, get) => ({
       } else {
         const basicPayload = ProductAdapter.toSallaBasicPayload(formData);
 
-        // 1. Update Salla Product Basic Info
-        await productEditService.updateProductBasicInfo(productId, basicPayload, state.platform);
-
-        // 2. Loop and update each Salla Variant SKU
-        if (formData.variants.length > 0) {
-          let reasonId = 303342349;
-          try {
-            const { apiClient } = await import('../../../services/apiClient');
-            const reasonsRes = await apiClient.get('/api/proxy/products/quantities/reasons');
-            const reasonsList = reasonsRes.data?.data || [];
-            if (reasonsList.length > 0) {
-              reasonId = reasonsList[0].id;
-            }
-          } catch (e) {
-            console.warn('Failed to fetch Salla stock adjustment reasons, using fallback.', e);
+        // 1. تحديث المعلومات الأساسية للمنتج
+        // إصلاح #19 (#68): معالجة خطأ التصنيف منفصلاً لتوفير رسالة هادفة
+        try {
+          await productEditService.updateProductBasicInfo(productId, basicPayload, state.platform);
+        } catch (basicErr: any) {
+          const errMsg = (basicErr?.response?.data?.message || basicErr?.message || '').toLowerCase();
+          if (errMsg.includes('categor') || errMsg.includes('تصنيف')) {
+            toast.warning('تم حفظ بيانات المنتج — لكن فشل تحديث التصنيف. تحقق من صلاحية تصنيفات متجرك');
+            // نكمل حفظ المتغيرات حتى لو فشل التصنيف
+          } else {
+            throw basicErr;
           }
+        }
 
-          for (const variant of formData.variants) {
-            const sallaVarPayload = ProductAdapter.toSallaVariantPayload(variant);
-            await productEditService.updateProductVariant(productId, variant.id, sallaVarPayload, 'salla');
+        // 2. معالجة المتغيرات (SKUs) — تحديث البيانات والكميات للمتغيرات الموجودة
+        if (formData.variants && formData.variants.length > 0) {
+          const originalVariantIds = (state.unifiedProduct?.variants || []).map(v => String(v.id));
 
-            if (variant.stocks && variant.stocks.length > 0) {
-              const quantitiesPayload = {
-                quantities: variant.stocks.map(st => ({
-                  branch: Number(st.locationId),
-                  quantity: st.quantity,
-                  reason_id: reasonId
-                }))
-              };
-              await productEditService.updateSallaVariantQuantities(variant.id, quantitiesPayload);
+          // تحديث المتغيرات الموجودة في سلة فقط (تجاهل المعرفات المؤقتة)
+          const existingVariants = formData.variants
+            .filter((v: any) => !String(v.id).startsWith('row-') && !String(v.id).startsWith('val-') && originalVariantIds.includes(String(v.id)));
+
+          if (existingVariants.length > 0) {
+            const variantUpdateResults = await runSequentially(
+              existingVariants.map((variant: any) => () =>
+                productEditService.updateProductVariant(
+                  productId, variant.id, ProductAdapter.toSallaVariantPayload(variant), 'salla'
+                ).catch(e => { throw { variantId: variant.id, displayName: variant.displayName, error: e }; })
+              )
+            );
+            await sallaWriteDelay();
+
+            // تجميع أخطاء التحديث الجزئية وتنبيه المستخدم إن وجدت
+            const failedVariantNames = variantUpdateResults
+              .filter(r => r.status === 'rejected')
+              .map(r => (r as PromiseRejectedResult).reason?.displayName || 'متغير')
+              .filter(Boolean);
+
+            // إلقاء خطأ واضح إذا فشل تحديث أي متغير لمنع إظهار إشعار نجاح كاذب
+            if (failedVariantNames.length > 0) {
+              throw new Error(`فشل تحديث المتغيرات التالية: ${failedVariantNames.join(' | ')}`);
             }
           }
         }
       }
 
       toast.success('تم حفظ التغييرات بنجاح');
+      // إصلاح #20 (#45): إعادة تحميل بيانات المنتج بعد الحفظ لمزامنة IDs الجديدة
+      if (state.platform === 'salla') {
+        try {
+          await get().loadProductData(String(productId), state.platform);
+        } catch (reloadErr) {
+          console.warn('[Salla] Failed to reload product after save:', reloadErr);
+        }
+      }
+      // إصلاح #20 (جزء 2): إعادة التحميل لزد عند وجود متغيرات جديدة — لمزامنة IDs الجديدة
+      if (state.platform === 'zid' && (formData.variants || []).some((v: any) => String(v.id).startsWith('row-'))) {
+        try {
+          await get().loadProductData(String(productId), 'zid');
+        } catch (reloadErr) {
+          console.warn('[Zid] Failed to reload product after variant creation:', reloadErr);
+        }
+      }
     } catch (e: any) {
       console.error('Save Product Data Error:', e);
       throw e;
     } finally {
       set({ isSaving: false });
+    }
+  },
+
+  // إصلاح #5 (مشكلة #10): إعادة جلب خيارات المنتج من سلة بعد إضافة خيار جديد
+  // يضمن أن state.attributes يحتوي دائماً على البيانات الحديثة بنفس الهيكل
+  refreshSallaAttributes: async (productId: string) => {
+    if (get().platform !== 'salla') return; // عزل سلة — لا يؤثر على زد
+    try {
+      const raw = await productEditService.fetchProductBasicInfo(productId);
+      const productData = raw?.data ?? raw;
+      const freshOptions = Array.isArray(productData?.options) ? productData.options : [];
+      set({ attributes: freshOptions });
+    } catch (e) {
+      console.warn('[Salla] Failed to refresh product options after new option creation:', e);
     }
   }
 }));

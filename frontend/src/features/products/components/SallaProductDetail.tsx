@@ -8,6 +8,7 @@ interface SallaProductDetailProps {
 }
 
 export function SallaProductDetail({ details }: SallaProductDetailProps) {
+  const storeCurrency = details.price?.currency || details.regular_price?.currency || details.sale_price?.currency || 'SAR';
   const [activeImage, setActiveImage] = useState<string>(
     details.main_image || details.thumbnail || details.images?.[0]?.url || ''
   );
@@ -281,15 +282,15 @@ export function SallaProductDetail({ details }: SallaProductDetailProps) {
                       </td>
                       
                       <td className="py-2.5 px-4 font-semibold text-primary whitespace-nowrap">
-                        {sku.sale_price?.amount ? `${sku.sale_price.amount} ${sku.sale_price.currency || 'SAR'}` : '—'}
+                        {sku.sale_price?.amount ? `${sku.sale_price.amount} ${sku.sale_price.currency || storeCurrency}` : '—'}
                       </td>
 
                       <td className="py-2.5 px-4 font-semibold text-amber-600 whitespace-nowrap">
-                        {sku.cost_price?.amount ? `${sku.cost_price.amount} ${sku.cost_price.currency || 'SAR'}` : '—'}
+                        {sku.cost_price?.amount ? `${sku.cost_price.amount} ${sku.cost_price.currency || storeCurrency}` : '—'}
                       </td>
 
                       <td className="py-2.5 px-4 text-foreground whitespace-nowrap">
-                        {sku.unlimited_quantity ? '∞' : sku.stock_quantity}
+                        {sku.unlimited_quantity ? '∞' : (sku.quantity ?? sku.stock_quantity ?? 0)}
                       </td>
                       <td className="py-2.5 px-4 text-muted-foreground whitespace-nowrap">
                         {sku.weight_label || (sku.weight ? `${sku.weight} ${sku.weight_type}` : '—')}

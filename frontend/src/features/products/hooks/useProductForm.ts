@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { productValidationSchema } from '../utils/productValidation';
+import { productValidationSchema, sallaProductSchema } from '../utils/productValidation';
 import type { ProductFormData } from '../utils/productValidation';
 import { useProductEditStore } from '../store/productEditStore';
 import { toast } from 'sonner';
@@ -34,10 +34,10 @@ const safeZodResolver = (schema: any) => {
 };
 
 export function useProductForm() {
-  const { unifiedProduct, saveProductData } = useProductEditStore();
+  const { unifiedProduct, saveProductData, platform } = useProductEditStore();
 
   const methods = useForm<ProductFormData>({
-    resolver: safeZodResolver(productValidationSchema),
+    resolver: safeZodResolver(platform === 'salla' ? sallaProductSchema : productValidationSchema),
     mode: 'all',
     defaultValues: {
       nameAr: '',
@@ -73,6 +73,8 @@ export function useProductForm() {
       images: [],
       variants: [],
       customOptions: [],
+      quantity: 0,
+      isUnlimited: false,
       stocks: []         // مصفوفة المخزون للمنتجات البسيطة (زد)
     }
   });
@@ -113,6 +115,8 @@ export function useProductForm() {
         images: unifiedProduct.images || [],
         variants: unifiedProduct.variants || [],
         customOptions: unifiedProduct.customOptions || [],
+        quantity: unifiedProduct.quantity ?? 0,
+        isUnlimited: (unifiedProduct as any).isUnlimited ?? false,
         stocks: unifiedProduct.stocks || []   // مخزون المنتج البسيط (زد)
       });
     }

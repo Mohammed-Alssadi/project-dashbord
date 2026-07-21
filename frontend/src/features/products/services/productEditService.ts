@@ -90,20 +90,18 @@ export const productEditService = {
     return response.data;
   },
 
-  /** حذف متغير فرعي */
-  deleteProductVariant: async (productId: string | number, variantId: string | number, platform: 'salla' | 'zid') => {
-    if (platform === 'zid') {
-      const response = await apiClient.delete(`/api/proxy/products/${productId}/variants/${variantId}`);
-      return response.data;
-    } else {
-      const response = await apiClient.delete(`/api/proxy/products/variants/${variantId}`);
-      return response.data;
-    }
+  deleteProductVariant: async (productId: string | number, variantId: string | number, _platform: 'salla' | 'zid') => {
+    const response = await apiClient.delete(`/api/proxy/products/${productId}/variants/${variantId}`);
+    return response.data;
   },
 
   /** تحديث كميات الفروع لمتغير فرعي (سلة فقط) */
-  updateSallaVariantQuantities: async (variantId: string | number, payload: { quantities: any[] }) => {
-    const response = await apiClient.put(`/api/proxy/products/variants/${variantId}/quantities`, payload);
+  // إصلاح #2: سلة تتوقع مصفوفة مباشرة وليس { quantities: [...] }
+  updateSallaVariantQuantities: async (variantId: string | number, payload: any[]) => {
+    const response = await apiClient.put(
+      `/api/proxy/products/variants/${variantId}/quantities`,
+      payload
+    );
     return response.data;
   },
 
@@ -122,17 +120,37 @@ export const productEditService = {
   },
 
   /** إضافة قيمة لخيار قائم (سلة فقط) */
-  createProductOptionValue: async (optionId: string | number, payload: any) => {
-    const response = await apiClient.post(`/api/proxy/products/options/${optionId}/values`, payload);
+  createProductOptionValue: async (
+    _productId: string | number,
+    optionId: string | number,
+    payload: any,
+    _existingValues: any[] = []
+  ) => {
+    const response = await apiClient.post(
+      `/api/proxy/products/options/${optionId}`,
+      {
+        name: payload.name,
+        color: payload.color || undefined,
+        display_value: payload.display_value || payload.color || payload.name || undefined
+      }
+    );
     return response.data;
   },
 
   /** حذف خيار منتج (سلة فقط) */
-  deleteProductOption: async (optionId: string | number, platform: 'salla' | 'zid') => {
+  // إصلاح #6: سلة تتوقع product_id في المسار: /products/{product_id}/options/{option_id}
+  deleteProductOption: async (
+    _productId: string | number,
+    optionId: string | number,
+    platform: 'salla' | 'zid'
+  ) => {
     if (platform === 'zid') {
       return { success: true };
     } else {
-      const response = await apiClient.delete(`/api/proxy/products/options/${optionId}`);
+      // سلة تتوقع حذف الخيار مباشرة عبر المسار: /products/options/{option_id}
+      const response = await apiClient.delete(
+        `/api/proxy/products/options/${optionId}`
+      );
       return response.data;
     }
   },
@@ -156,7 +174,10 @@ export const productEditService = {
       const response = await apiClient.delete(`/api/proxy/products/${productId}/images/${imageId}`);
       return response.data;
     } else {
-      const response = await apiClient.delete(`/api/proxy/products/images/${imageId}`);
+      // إصلاح #58: سلة تتوقع product_id في مسار حذف الصورة
+      const response = await apiClient.delete(
+        `/api/proxy/products/${productId}/images/${imageId}`
+      );
       return response.data;
     }
   },
@@ -170,6 +191,12 @@ export const productEditService = {
   /** فصل منتج عن قسم (تصنيف) - زد فقط */
   removeProductCategory: async (productId: string | number, categoryId: number) => {
     const response = await apiClient.delete(`/api/proxy/products/${productId}/categories/${categoryId}`);
+    return response.data;
+  },
+
+  /** جلب قائمة أسباب تعديل الكميات (سلة فقط) */
+  getSallaQuantityChangeReasons: async () => {
+    const response = await apiClient.get('/api/proxy/products/quantities/quantity-change-reason');
     return response.data;
   }
 };

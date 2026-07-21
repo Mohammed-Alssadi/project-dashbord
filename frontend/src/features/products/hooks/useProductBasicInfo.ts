@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useProductEditStore } from '../store/productEditStore';
 import { productEditService } from '../services/productEditService';
+import { apiClient } from '../../../services/apiClient';
 import { toast } from 'sonner';
 
 /**
@@ -21,10 +22,10 @@ export function useProductBasicInfo() {
 
   if (!unifiedProduct) {
     return {
-      safeImages: [],
-      selectedCategories: [],
-      selectedCategoryIds: [],
-      categoriesList: [],
+      safeImages: [] as Array<{ id: string; url: string; isMain: boolean }>,
+      selectedCategories: [] as Array<{ id: string; name: string }>,
+      selectedCategoryIds: [] as string[],
+      categoriesList: [] as Array<{ id: string; label: string }>,
       isUploading: false,
       fileInputRef,
       handleImageUpload: async () => {},
@@ -65,66 +66,75 @@ export function useProductBasicInfo() {
     setValue('categories', newCategories, { shouldValidate: true, shouldDirty: true });
   };
 
-  // رفع الصورة مع النص البديل (alt_text) الذكي المعتمد على اسم المنتج
+  // رفع الصور مع النص البديل (alt_text) الذكي المعتمد على اسم المنتج — دعم رفع صور متعددة (Issue #60)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const file = files[0];
-
-    const productName = watch('nameAr') || unifiedProduct.nameAr || 'منتج';
-    const altText = `صورة منتج ${productName}`;
-
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('alt_text', altText);
 
     setIsUploading(true);
-    try {
-      const res = await productEditService.uploadProductImage(unifiedProduct.id, formData, platform ?? 'salla');
-      
-      const innerData = res.data || res;
-      let imageUrl = '';
+    const fileArray = Array.from(files);
+    const productName = watch('nameAr') || unifiedProduct?.nameAr || 'منتج';
+    let newImagesList = [...safeImages];
+    let successCount = 0;
 
-      if (innerData) {
-        if (typeof innerData.url === 'string') {
-          imageUrl = innerData.url;
-        } else if (innerData.image) {
-          if (typeof innerData.image === 'string') {
-            imageUrl = innerData.image;
-          } else if (typeof innerData.image === 'object') {
-            imageUrl = innerData.image.medium || innerData.image.large || innerData.image.thumbnail || '';
+    for (const file of fileArray) {
+      const altText = `صورة منتج ${productName}`;
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('alt_text', altText);
+
+      try {
+        const res = await productEditService.uploadProductImage(unifiedProduct.id, formData, platform ?? 'salla');
+        const innerData = res.data || res;
+        let imageUrl = '';
+
+        if (innerData) {
+          if (typeof innerData.url === 'string') {
+            imageUrl = innerData.url;
+          } else if (innerData.image) {
+            if (typeof innerData.image === 'string') {
+              imageUrl = innerData.image;
+            } else if (typeof innerData.image === 'object') {
+              imageUrl = innerData.image.medium || innerData.image.large || innerData.image.thumbnail || '';
+            }
+          } else if (typeof innerData.image_url === 'string') {
+            imageUrl = innerData.image_url;
+          } else if (typeof innerData.url === 'object' && innerData.url?.medium) {
+            imageUrl = innerData.url.medium;
           }
-        } else if (typeof innerData.image_url === 'string') {
-          imageUrl = innerData.image_url;
-        } else if (typeof innerData.url === 'object' && innerData.url?.medium) {
-          imageUrl = innerData.url.medium;
         }
-      }
 
-      if (!imageUrl && typeof res.url === 'string') {
-        imageUrl = res.url;
+        if (!imageUrl && typeof res.url === 'string') {
+          imageUrl = res.url;
+        }
+
+        if (imageUrl) {
+          const newImage = {
+            id: res.data?.id ? String(res.data.id) : `img-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            url: imageUrl,
+            isMain: newImagesList.length === 0
+          };
+          newImagesList = [...newImagesList, newImage];
+          successCount++;
+        }
+      } catch (err: any) {
+        console.error('[Batch Image Upload Error]:', err);
       }
-      
-      if (imageUrl) {
-        const newImage = {
-          id: res.data?.id ? String(res.data.id) : `img-${Date.now()}`,
-          url: imageUrl,
-          isMain: safeImages.length === 0
-        };
-        setValue('images', [...safeImages, newImage], { shouldDirty: true });
-        toast.success('تم رفع الصورة بنجاح');
-      } else {
-        toast.error('فشل الحصول على رابط الصورة المرتجع');
-      }
-    } catch (err: any) {
-      console.error(err);
+    }
+
+    if (successCount > 0) {
+      setValue('images', newImagesList, { shouldDirty: true });
+      toast.success(`تم رفع ${successCount} ${successCount > 1 ? 'صور' : 'صورة'} بنجاح`);
+    } else {
       toast.error('حدث خطأ أثناء رفع الصورة للمنصة');
-    } finally {
-      setIsUploading(false);
+    }
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  // حذف صورة من المنصة ومحلياً
+  // حذف صورة من المنصة ومحلياً — immutable update
   const handleDeleteImage = async (imageId: string) => {
     try {
       await productEditService.deleteProductImage(unifiedProduct.id, imageId, unifiedProduct.platform);
@@ -132,23 +142,45 @@ export function useProductBasicInfo() {
       console.warn('Failed to delete image from platform CDN, removing locally.', e);
     }
 
-    const updatedImages = safeImages.filter(img => img.id !== imageId);
-    if (safeImages.find(img => img.id === imageId)?.isMain && updatedImages.length > 0) {
-      updatedImages[0].isMain = true;
-    }
+    const deletedWasMain = safeImages.find(img => img.id === imageId)?.isMain === true;
+    const filtered = safeImages.filter(img => img.id !== imageId);
+
+    // إذا كانت الصورة المحذوفة هي الرئيسية، نجعل الأولى رئيسية (immutable)
+    const updatedImages = filtered.map((img, idx) => ({
+      ...img,
+      isMain: deletedWasMain && idx === 0 ? true : img.isMain
+    }));
+
     setValue('images', updatedImages, { shouldDirty: true });
     toast.success('تم حذف الصورة');
   };
 
   // تعيين صورة رئيسية
-  const handleSetMainImage = (imageId: string) => {
+  const handleSetMainImage = async (imageId: string) => {
+    // immutable update — بدون mutation مباشرة
     const updatedImages = safeImages.map(img => ({
       ...img,
       isMain: img.id === imageId
     }));
     setValue('images', updatedImages, { shouldDirty: true });
-    toast.success('تم تحديد الصورة الرئيسية للمنتج');
+
+    // إرسال طلب API لسلة لتعيين الصورة الرئيسية فعلياً
+    if (platform === 'salla' && unifiedProduct?.id) {
+      try {
+        await apiClient.put(
+          `/api/proxy/products/${unifiedProduct.id}/images/${imageId}`,
+          { is_main: true }
+        );
+        toast.success('تم تحديد الصورة الرئيسية وحفظها في المتجر');
+      } catch (e) {
+        console.warn('[Salla] Failed to set main image via API — will save with next update:', e);
+        toast.success('تم تحديد الصورة الرئيسية محلياً — ستُحفَظ مع باقي التغييرات');
+      }
+    } else {
+      toast.success('تم تحديد الصورة الرئيسية للمنتج');
+    }
   };
+
 
   return {
     safeImages,

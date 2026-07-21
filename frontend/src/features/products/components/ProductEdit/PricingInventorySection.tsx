@@ -6,6 +6,7 @@ import { Switch } from "../../../../components/ui/switch";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { FormFieldError } from "../../../../components/ui/FormFieldError";
 import { useProductPricingInventory } from "../../hooks/useProductPricingInventory";
+import { useProductEditStore } from "../../store/productEditStore";
 
 export function PricingInventorySection() {
   const { setValue, watch } = useFormContext();
@@ -23,6 +24,10 @@ export function PricingInventorySection() {
     handleUnlimitedToggle,
     unifiedProduct
   } = useProductPricingInventory();
+
+  const { platform } = useProductEditStore();
+
+  // تم إزالة المتغيرات غير المستخدمة لتفادي أخطاء البناء بالكومبايلر
 
   if (!unifiedProduct) return null; // حماية ضد عدم اكتمال تحميل كائن المنتج الموحد
 
@@ -84,11 +89,13 @@ export function PricingInventorySection() {
                         field.onChange(checked);
                         if (checked) {
                           const basePrice = watch('price') || 0;
-                          setValue('salePrice', Number(basePrice) * 0.9, { shouldDirty: true });
+                          // سعر الخصم الافتراضي 10% — يمكن للمستخدم تعديله
+                          setValue('salePrice', Math.round(Number(basePrice) * 0.9 * 100) / 100, { shouldDirty: true });
                           const today = new Date().toISOString().split('T')[0];
-                          const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+                          // انتهاء الخصم بعد 30 يوماً (وليس غداً) — أكثر منطقية
+                          const in30Days = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
                           setValue('discountStart', today, { shouldDirty: true });
-                          setValue('discountEnd', tomorrow, { shouldDirty: true });
+                          setValue('discountEnd', in30Days, { shouldDirty: true });
                         } else {
                           setValue('salePrice', null, { shouldDirty: true });
                           setValue('discountStart', null, { shouldDirty: true });
@@ -145,26 +152,21 @@ export function PricingInventorySection() {
           {/* ── الكميات والمخزون ─────────────────────────────────────────── */}
           <div className="space-y-4 pt-4 border-t border-border/50">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {stocks.length > 0 ? (
-                /* إذا كانت هناك مواقع مخازن حقيقية قادمة من المنصة */
-                <>
-                  <div className="space-y-2 text-right">
-                    <Label className="text-sm font-semibold">المخزون</Label>
-                    <select
-                      value={selectedLocationId || (stocks[0]?.locationId ?? '')}
-                      onChange={(e) => setSelectedLocationId(e.target.value)}
-                      className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors cursor-pointer"
-                    >
-                      {stocks.map((st: any) => (
-                        <option key={st.locationId} value={st.locationId}>
-                          {st.locationName}
-                        </option>
-                      ))}
-                    </select>
 
-                    {/* غير محدود (أسفل المخزون) */}
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse pt-2">
+              {platform === 'salla' ? (
+                /* في سلة: لا يتم التعامل مع دروب داون المخازن (مخزن واحد افتراضي) ويتم إتاحة حقل الكمية وغير محدود دائماً */
+                <div className="col-span-full max-w-md space-y-2 text-right">
+                  <Label className="text-sm font-semibold">الكمية</Label>
+                  <div className="flex items-center gap-4 justify-start flex-row-reverse">
+                    <Input
+                      type="number"
+                      value={currentQty}
+                      onChange={handleQtyChange}
+                      disabled={isCurrentUnlimited}
+                      className="h-11 rounded-lg bg-background text-right disabled:opacity-50 disabled:bg-muted/10 disabled:cursor-not-allowed font-medium w-full"
+                      placeholder="0"
+                    />
+                    <div className="flex items-center gap-2 shrink-0">
                       <Checkbox
                         id="unlimited"
                         checked={isCurrentUnlimited}
@@ -175,49 +177,80 @@ export function PricingInventorySection() {
                       </Label>
                     </div>
                   </div>
-
-                  {/* حقل الكمية (يسار) */}
-                  <div className="space-y-2 text-right">
-                    <Label className="text-sm font-semibold">الكمية</Label>
-                    <Input
-                      type="number"
-                      value={currentQty}
-                      onChange={handleQtyChange}
-                      disabled={isCurrentUnlimited}
-                      className="h-11 rounded-lg bg-background text-right disabled:opacity-50 disabled:bg-muted/10 disabled:cursor-not-allowed font-medium"
-                      placeholder="0"
-                    />
-                  </div>
-                </>
+                </div>
               ) : (
-                /* إذا لم توجد فروع مخازن قادمة من المنصة (منتج بسيط بدون فروع) */
-                <>
-                  <div className="space-y-2 text-right">
-                    <Label className="text-sm font-semibold">الكمية</Label>
-                    <Input
-                      type="number"
-                      value={currentQty}
-                      onChange={handleQtyChange}
-                      disabled={isCurrentUnlimited}
-                      className="h-11 rounded-lg bg-background text-right disabled:opacity-50 disabled:bg-muted/10 disabled:cursor-not-allowed font-medium"
-                      placeholder="0"
-                    />
-                  </div>
+                /* في زد: معالجة فروع المخازن بشكل طبيعي */
+                stocks.length > 0 ? (
+                  <>
+                    <div className="space-y-2 text-right">
+                      <Label className="text-sm font-semibold">المخزون</Label>
+                      <select
+                        value={selectedLocationId || (stocks[0]?.locationId ?? '')}
+                        onChange={(e) => setSelectedLocationId(e.target.value)}
+                        className="flex h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                      >
+                        {stocks.map((st: any) => (
+                          <option key={st.locationId} value={st.locationId}>
+                            {st.locationName}
+                          </option>
+                        ))}
+                      </select>
 
-                  <div className="flex items-end pb-3 text-right">
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                      <Checkbox
-                        id="unlimited"
-                        checked={isCurrentUnlimited}
-                        onCheckedChange={handleUnlimitedToggle}
-                      />
-                      <Label htmlFor="unlimited" className="text-sm font-normal cursor-pointer select-none text-foreground">
-                        غير محدود
-                      </Label>
+                      <div className="flex items-center space-x-2 rtl:space-x-reverse pt-2">
+                        <Checkbox
+                          id="unlimited"
+                          checked={isCurrentUnlimited}
+                          onCheckedChange={handleUnlimitedToggle}
+                        />
+                        <Label htmlFor="unlimited" className="text-sm font-normal cursor-pointer select-none text-foreground">
+                          غير محدود
+                        </Label>
+                      </div>
                     </div>
-                  </div>
-                </>
+
+                    <div className="space-y-2 text-right">
+                      <Label className="text-sm font-semibold">الكمية</Label>
+                      <Input
+                        type="number"
+                        value={currentQty}
+                        onChange={handleQtyChange}
+                        disabled={isCurrentUnlimited}
+                        className="h-11 rounded-lg bg-background text-right disabled:opacity-50 disabled:bg-muted/10 disabled:cursor-not-allowed font-medium"
+                        placeholder="0"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2 text-right">
+                      <Label className="text-sm font-semibold">الكمية</Label>
+                      <Input
+                        type="number"
+                        value={currentQty}
+                        onChange={handleQtyChange}
+                        disabled={isCurrentUnlimited}
+                        className="h-11 rounded-lg bg-background text-right disabled:opacity-50 disabled:bg-muted/10 disabled:cursor-not-allowed font-medium"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="flex items-end pb-3 text-right">
+                      <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                        <Checkbox
+                          id="unlimited"
+                          checked={isCurrentUnlimited}
+                          onCheckedChange={handleUnlimitedToggle}
+                        />
+                        <Label htmlFor="unlimited" className="text-sm font-normal cursor-pointer select-none text-foreground">
+                          غير محدود
+                        </Label>
+                      </div>
+                    </div>
+                  </>
+                )
               )}
+
+
 
             </div>
           </div>

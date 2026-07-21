@@ -160,12 +160,14 @@ export const dynamicProxy = async (req, res) => {
     const targetUrl = `${baseUrl}${path}`;
 
     // 3. تجهيز إعدادات Axios
+    // إصلاح #2 (مشكلة #36): timeout ديناميكي — عمليات الكتابة تحتاج وقتاً أطول
+    const requestTimeout = ['POST', 'PUT', 'PATCH'].includes(req.method) ? 45000 : 25000;
     const axiosConfig = {
       method: req.method,
       url: targetUrl,
       headers: headers,
       params: normalizedQuery,
-      timeout: 20000,
+      timeout: requestTimeout,
       // استلام الاستجابة الخام لتمرير كافة أنواع الملفات (JSON, PDF, Images...)
       responseType: 'arraybuffer',
       // عدم رمي خطأ عند تلقي حالة 400 أو 500 ليتم تمريرها بشفافية
@@ -173,6 +175,7 @@ export const dynamicProxy = async (req, res) => {
     };
 
     // إرسال الـ Body فقط في طلبات الإنشاء والتحديث لمنع رفض طلبات DELETE من خوادم سلة
+    // إصلاح #1 (مشكلة #34): مسارات /products/{pid}/options/{oid} مغطاة بـ /products prefix ✔️
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       axiosConfig.data = req.body;
     }
@@ -238,17 +241,26 @@ export const dynamicProxy = async (req, res) => {
     const isJson = contentType.includes('application/json');
     // isListPath is already declared above
 
-    if (req.method === 'GET' && response.status >= 200 && response.status < 300 && isJson) {
+    // إصلاح #3 (مشكلة #35): تطبيع JSON ممتد لجميع طلبات GET وPUT وPOST وPATCH الناجحة
+    if (response.status >= 200 && response.status < 300 && isJson) {
       try {
         const textData = response.data.toString('utf8');
         const jsonData = JSON.parse(textData);
 
-        if (isListPath) {
+        if (req.method === 'GET' && isListPath) {
+          // GET على مسارات القوائم: تطبيع pagination
           const normalizedResponse = normalizeProxyResponse(jsonData, userPlatform, originalPath, req.query);
           responseData = Buffer.from(JSON.stringify(normalizedResponse), 'utf8');
+        } else if (req.method === 'GET') {
+          // GET على مسارات فردية: أعد JSON نظيف بدون تعديل
+          responseData = Buffer.from(JSON.stringify(jsonData), 'utf8');
+        } else {
+          // PUT/POST/PATCH: أعد JSON نظيف بدون تعديل pagination
+          responseData = Buffer.from(JSON.stringify(jsonData), 'utf8');
         }
       } catch (e) {
         console.error('[Proxy Response Parse Error]:', e.message);
+        // يبقى responseData = response.data (Buffer خام) كـ Fallback
       }
     }
 

@@ -18,7 +18,7 @@ interface NewValueModalProps {
   setNewValueName: (val: string) => void;
   handleCreateNewValue: (name: string, color?: string) => Promise<void>;
   activeTypeId: string | null;
-  variantTypes: Array<{ id: string; label: string }>;
+  variantTypes: Array<{ id: string; label: string; displayType?: string }>;
 }
 
 export function NewValueModal({
@@ -30,8 +30,13 @@ export function NewValueModal({
   activeTypeId,
   variantTypes,
 }: NewValueModalProps) {
-  const activeTypeLabel = variantTypes.find(t => t.id === activeTypeId)?.label || 'الخيار';
-  const isColorOption = activeTypeLabel === 'اللون' || activeTypeLabel.toLowerCase().includes('color') || activeTypeLabel.toLowerCase() === 'لون';
+  const activeType = variantTypes.find(t => t.id === activeTypeId);
+  const activeTypeLabel = activeType?.label || 'الخيار';
+  const isColorOption = activeType?.displayType === 'color' ||
+    activeTypeLabel === 'اللون' ||
+    activeTypeLabel.toLowerCase().includes('color') ||
+    activeTypeLabel.toLowerCase() === 'لون';
+
   const [color, setColor] = useState('#000000');
 
   useEffect(() => {
@@ -57,25 +62,22 @@ export function NewValueModal({
         </DialogHeader>
         <div className="space-y-4 py-2 text-right">
           {isColorOption && (
-            <div className="space-y-1.5 flex flex-col items-start rtl:items-end">
-              <Label className="text-xs text-muted-foreground mb-1 block">اللون</Label>
-              <button
-                type="button"
-                className="w-10 h-10 rounded-full border shadow-sm relative overflow-hidden cursor-pointer flex items-center justify-center"
-                style={{ backgroundColor: color }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById("new-value-color-picker")?.click();
-                }}
-              >
-                <input
-                  id="new-value-color-picker"
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                />
-              </button>
+            <div className="space-y-2 flex flex-col items-start rtl:items-end">
+              <Label className="text-xs text-muted-foreground block">اختيار اللون</Label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div
+                  className="w-10 h-10 rounded-full border shadow-sm relative overflow-hidden shrink-0 border-border group-hover:scale-105 transition-transform flex items-center justify-center"
+                  style={{ backgroundColor: color }}
+                >
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                </div>
+                <span className="text-xs font-mono font-medium dir-ltr text-muted-foreground uppercase">{color}</span>
+              </label>
             </div>
           )}
           <div className="space-y-1.5">

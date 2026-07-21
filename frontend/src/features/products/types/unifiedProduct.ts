@@ -83,4 +83,5 @@ export interface UnifiedProduct {
 
   platform: 'salla' | 'zid';
   htmlUrl: string;
+  weightType?: string; // إصلاح #15 (#32): وحدة الوزن من سلة (kg | g | lb)
 }

@@ -26,6 +26,7 @@ import {
 export function useProductVariants() {
   const { attributes: storeAttributes, isLoading, unifiedProduct, product } = useProductEditStore();
   const { register, control, setValue, watch } = useFormContext();
+  const formVariants = watch('variants') || [];
   const { fields: variantFields, append: appendVariant, remove: removeVariant, replace: replaceVariants } = useFieldArray({
     control,
     name: 'variants'
@@ -38,16 +39,28 @@ export function useProductVariants() {
   const [showConfirmButton, setShowConfirmButton] = useState(false);
 
   const hasInitializedRef = useRef(false);
+  // عداد متزايد لتوليد IDs فريدة بدلاً من Date.now() الذي قد يتكرر
+  const uidCounter = useRef(0);
+  const genUid = () => `uid-${++uidCounter.current}`;
 
   const platform = unifiedProduct?.platform ?? null;
 
   useEffect(() => {
+    // إعادة ضبط عند تغيير المنتج فقط — لا عند تغيير storeAttributes.length
+    // (تغيير storeAttributes.length يحدث عند إضافة خيار جديد وهنا نريد الاحتفاظ بحالة الصفوف)
     hasInitializedRef.current = false;
   }, [unifiedProduct?.id]);
 
   // مزامنة أسطر الواجهة الخاصة بالخيارات
   useEffect(() => {
     if (!isLoading && Array.isArray(storeAttributes) && storeAttributes.length > 0 && !hasInitializedRef.current && unifiedProduct) {
+      const productVariants = unifiedProduct.variants || [];
+
+      // إذا كان المنتج يحتوي على متغيرات ولكن النموذج لم يُهيأ بعد (ما زال فارغاً)، ننتظر حتى يتم عمل reset للنموذج
+      if (productVariants.length > 0 && formVariants.length === 0) {
+        return;
+      }
+
       const types = mapStoreAttributesToVariantTypes(storeAttributes);
       setVariantTypes(types);
 
@@ -56,7 +69,7 @@ export function useProductVariants() {
         : storeAttributes;
 
       const rows = mapVariantsToRows(
-        watch('variants') || [],
+        formVariants,
         currentProductOptions,
         types,
         platform
@@ -65,7 +78,7 @@ export function useProductVariants() {
       hasInitializedRef.current = true;
       setShowConfirmButton(false);
     }
-  }, [isLoading, storeAttributes, unifiedProduct, product, platform, watch]);
+  }, [isLoading, storeAttributes, unifiedProduct, product, platform, watch, formVariants.length]);
 
   // ── Dialog: إنشاء خيار جديد ──────────────────────────────────────────────
   const [isNewOptionModalOpen, setIsNewOptionModalOpen] = useState(false);
@@ -82,7 +95,16 @@ export function useProductVariants() {
     );
   };
 
-  // ── Dialog: إنشاء قيمة جديدة ──────────────────────────────────────────────
+  // ── Dialog: تأكيد حذف الخيار ──────────────────────────────────────────────
+  const [pendingDeleteOptionId, setPendingDeleteOptionId] = useState<string | null>(null);
+
+  // ── Dialog: تأكيد حذف المتغير ─────────────────────────────────────────────
+  const [pendingDeleteVariantIdx, setPendingDeleteVariantIdx] = useState<number | null>(null);
+
+  // ── Dialog: تأكيد تغيير نوع الخيار (يُسبِّب مسح المتغيرات) ──────────────
+  const [pendingTypeChange, setPendingTypeChange] = useState<{ rowId: string; newTypeId: string } | null>(null);
+
+  // ── Dialog: إنشاء قيمة جديدة ────────────────────────────────────────────
   const [isNewValueModalOpen, setIsNewValueModalOpen] = useState(false);
   const [newValueName, setNewValueName] = useState('');
   const [activeTypeIdForNewValue, setActiveTypeIdForNewValue] = useState<string | null>(null);
@@ -95,36 +117,70 @@ export function useProductVariants() {
 
   const handleRemoveRow = async (id: string) => {
     const isRealOptionId = id && !String(id).startsWith('row-');
-    
-    if (isRealOptionId && platform === 'salla' && unifiedProduct?.id) {
-      const confirmDelete = window.confirm('هل أنت متأكد من رغبتك في حذف هذا الخيار وكل قيمه ومتغيراته نهائياً من المتجر؟');
-      if (!confirmDelete) return;
 
-      try {
-        toast.loading('جاري حذف الخيار من المنصة...', { id: 'delete-option' });
-        await productEditService.deleteProductOption(id, platform);
-        toast.success('تم حذف الخيار بنجاح من المنصة', { id: 'delete-option' });
-      } catch (e: any) {
-        console.error(e);
-        toast.error('فشل حذف الخيار من المنصة: ' + (e.message || ''), { id: 'delete-option' });
-        return;
-      }
+    if (isRealOptionId && platform === 'salla' && unifiedProduct?.id) {
+      // إصلاح #13 (#28): فتح Dialog تأكيد حرفي بدلاً من window.confirm البدائي
+      setPendingDeleteOptionId(id);
+      return; // ننتظر تأكيد المستخدم عبر handleConfirmDeleteOption
     }
 
     setVariantsRows(prev => prev.filter(v => v.id !== id));
     setShowConfirmButton(true);
   };
 
+  // إصلاح #13: تأكيد حذف الخيار بعد موافقة المستخدم عبر Dialog
+  const handleConfirmDeleteOption = async () => {
+    if (!pendingDeleteOptionId || !unifiedProduct?.id) {
+      setPendingDeleteOptionId(null);
+      return;
+    }
+    const id = pendingDeleteOptionId;
+    setPendingDeleteOptionId(null);
+
+    try {
+      toast.loading('جاري حذف الخيار من المنصة...', { id: 'delete-option' });
+      await productEditService.deleteProductOption(unifiedProduct.id, id, platform || 'salla');
+      toast.success('تم حذف الخيار بنجاح من المنصة', { id: 'delete-option' });
+    } catch (e: any) {
+      toast.error('فشل حذف الخيار من المنصة: ' + (e.message || ''), { id: 'delete-option' });
+      return; // لا نحذف محلياً إذا فشل الحذف من API
+    }
+    // حذف محلياً بعد نجاح API
+    setVariantsRows(prev => prev.filter(row => row.id !== id));
+    setVariantTypes(prev => prev.filter(t => t.id !== id));
+    setShowConfirmButton(true);
+  };
+
+
+
+  // إصلاح: استبدال window.confirm بفتح Dialog تأكيد — الحذف الفعلي في handleConfirmDeleteVariant
   const handleRemoveVariant = async (idx: number) => {
     const variantsValues = watch('variants') || [];
     const variantToRemove = variantsValues[idx];
     const variantId = variantToRemove?.id;
-    const hasRealId = variantId && !String(variantId).startsWith('temp-') && !String(variantId).startsWith('new-');
+    const hasRealId = variantId && !String(variantId).startsWith('temp-') && !String(variantId).startsWith('new-') && !String(variantId).startsWith('row-');
 
     if (hasRealId && unifiedProduct?.id) {
-      const confirmDelete = window.confirm('هل أنت متأكد من رغبتك في حذف هذا المتغير نهائياً من المتجر؟');
-      if (!confirmDelete) return;
+      // فتح Dialog تأكيد بدلاً من window.confirm البدائي
+      setPendingDeleteVariantIdx(idx);
+      return;
+    }
 
+    // متغير مؤقت — حذف مباشر بدون تأكيد
+    removeVariant(idx);
+  };
+
+  // تأكيد حذف المتغير بعد موافقة المستخدم عبر Dialog
+  const handleConfirmDeleteVariant = async () => {
+    if (pendingDeleteVariantIdx === null) return;
+    const idx = pendingDeleteVariantIdx;
+    setPendingDeleteVariantIdx(null);
+
+    const variantsValues = watch('variants') || [];
+    const variantToRemove = variantsValues[idx];
+    const variantId = variantToRemove?.id;
+
+    if (variantId && unifiedProduct?.id) {
       try {
         toast.loading('جاري حذف المتغير من المنصة...', { id: 'delete-variant' });
         await productEditService.deleteProductVariant(unifiedProduct.id, variantId, platform || 'salla');
@@ -132,7 +188,7 @@ export function useProductVariants() {
       } catch (e: any) {
         console.error(e);
         toast.error('فشل حذف المتغير من المنصة: ' + (e.message || ''), { id: 'delete-variant' });
-        return;
+        return; // لا نحذف محلياً إذا فشل الحذف من API
       }
     }
 
@@ -144,10 +200,31 @@ export function useProductVariants() {
       setIsNewOptionModalOpen(true);
       return;
     }
-    setVariantsRows(prev => prev.map(row => 
+
+    // إذا كان هناك متغيرات موجودة، نطلب تأكيد المستخدم قبل المسح
+    const existingVariants = watch('variants') || [];
+    if (existingVariants.length > 0) {
+      setPendingTypeChange({ rowId, newTypeId });
+      return; // ننتظر التأكيد من Dialog
+    }
+
+    // لا توجد متغيرات — طبّق التغيير مباشرة
+    setVariantsRows(prev => prev.map(row =>
       row.id === rowId ? { ...row, typeId: newTypeId, selectedValues: [] } : row
     ));
     setShowConfirmButton(true);
+  };
+
+  // تأكيد تغيير نوع الخيار بعد موافقة المستخدم
+  const handleConfirmTypeChange = () => {
+    if (!pendingTypeChange) return;
+    const { rowId, newTypeId } = pendingTypeChange;
+    setVariantsRows(prev => prev.map(row =>
+      row.id === rowId ? { ...row, typeId: newTypeId, selectedValues: [] } : row
+    ));
+    replaceVariants([]);
+    setShowConfirmButton(true);
+    setPendingTypeChange(null);
   };
 
 
@@ -155,11 +232,11 @@ export function useProductVariants() {
   const handleToggleValue = (rowId: string, valueId: string) => {
     setVariantsRows(prev => prev.map(row => {
       if (row.id !== rowId) return row;
-        const isSelected = row.selectedValues.includes(valueId);
-        const selectedValues = isSelected
-          ? row.selectedValues.filter((id: string) => id !== valueId)
-          : [...row.selectedValues, valueId];
-        return { ...row, selectedValues };
+      const isSelected = row.selectedValues.includes(valueId);
+      const selectedValues = isSelected
+        ? row.selectedValues.filter((id: string) => id !== valueId)
+        : [...row.selectedValues, valueId];
+      return { ...row, selectedValues };
     }));
     setShowConfirmButton(true);
   };
@@ -174,13 +251,17 @@ export function useProductVariants() {
   const saveStockModal = () => {
     if (activeStockIdx !== null) {
       setValue(`variants.${activeStockIdx}.stocks`, tempStocks, { shouldDirty: true });
-      
-      const totalQty = tempStocks.reduce((sum: number, st: any) => sum + (st.isUnlimited ? 0 : (st.quantity || 0)), 0);
+
       const isAnyUnlimited = tempStocks.some((st: any) => st.isUnlimited);
-      
+      // إصلاح #65: عند وجود فرع unlimited، الكمية الإجمالية = 0 (ستُعرَض كـ ∞)
+      // هذا يُزيل التناقض بين عرض "∞" وإرسال كمية فعلية
+      const totalQty = isAnyUnlimited
+        ? 0
+        : tempStocks.reduce((sum: number, st: any) => sum + (st.quantity || 0), 0);
+
       setValue(`variants.${activeStockIdx}.quantity`, totalQty, { shouldDirty: true });
       setValue(`variants.${activeStockIdx}.isUnlimited`, isAnyUnlimited, { shouldDirty: true });
-      
+
       toast.success('تمت مزامنة كميات المستودعات بنجاح');
       closeStockModal();
     }
@@ -289,10 +370,15 @@ export function useProductVariants() {
           name: newOptionName,
           type: 'radio',
           display_type: newOptionType === 'color' ? 'color' : 'text',
-          values: newOptionValues.map(v => ({
-            name: v.label,
-            display_value: newOptionType === 'color' ? (v.color || '#000000') : v.label
-          }))
+          // إصلاح #12: سلة تتوقع حقل 'color' للألوان وليس 'display_value'
+          values: newOptionValues
+            .filter(v => v.label.trim())
+            .map(v => {
+              if (newOptionType === 'color') {
+                return { name: v.label, color: v.color || '#000000' };
+              }
+              return { name: v.label };
+            })
         };
 
         const res = await productEditService.createProductOption(unifiedProduct!.id, payload, platform || 'salla');
@@ -305,24 +391,48 @@ export function useProductVariants() {
           const newMappedType = {
             id: String(newAttr.id),
             label: newOptionName,
+            displayType: newOptionType === 'color' ? 'color' : 'text',
             values: (newAttr.values || []).map((v: any, i: number) => ({
               id: String(v.id),
               label: typeof v.name === 'object'
                 ? (v.name.ar || v.name.en || v.display_value || String(v.id))
-                : String(v.name ?? v.display_value ?? v.value ?? newOptionValues[i]?.label ?? '')
+                : String(v.name ?? v.display_value ?? v.value ?? newOptionValues[i]?.label ?? ''),
+              hex: v.color || (typeof v.display_value === 'string' && v.display_value.startsWith('#') ? v.display_value : undefined)
             }))
           };
 
           setVariantTypes(prev => [...prev, newMappedType]);
+
+          // إصلاح #4 (مشكلة #47): تطبيع newAttr ليتوافق مع هيكل attributes القائم
+          const normalizedNewAttr = {
+            id: newAttr.id,
+            name: newAttr.name,
+            type: newAttr.type || 'radio',
+            display_type: newAttr.display_type || (newOptionType === 'color' ? 'color' : 'text'),
+            values: (newAttr.values || []).map((v: any) => ({
+              id: v.id,
+              name: v.name,
+              color: v.color || v.display_value || null,
+              display_value: v.display_value || v.color || null,
+            }))
+          };
           useProductEditStore.setState(state => ({
-            attributes: [...state.attributes, newAttr]
+            attributes: [...state.attributes, normalizedNewAttr]
           }));
+
+          // إصلاح #5: إعادة جلب خيارات المنتج من سلة لضمان توحيد الهيكل
+          if (platform === 'salla' && unifiedProduct?.id) {
+            useProductEditStore.getState().refreshSallaAttributes(String(unifiedProduct.id));
+          }
         }
       }
 
       setIsNewOptionModalOpen(false);
       setNewOptionName('');
+      // إصلاح #16: إعادة ضبط نوع الخيار وبيانات النافذة عند الإغلاق
+      setNewOptionType('color');
       setNewOptionValues([{ id: `val-${Date.now()}`, label: '', color: '#000000' }]);
+      setCollapsedValueIds([]);
     } catch (e: any) {
       console.error(e);
       toast.error('حدث خطأ أثناء إضافة الخيار: ' + (e.message || ''));
@@ -354,14 +464,14 @@ export function useProductVariants() {
           label: valName
         };
 
-        setVariantTypes(prev => prev.map(t => 
-          t.id === activeTypeIdForNewValue 
+        setVariantTypes(prev => prev.map(t =>
+          t.id === activeTypeIdForNewValue
             ? { ...t, values: [...t.values, newValMapped] }
             : t
         ));
 
         useProductEditStore.setState(state => ({
-          attributes: state.attributes.map(attr => 
+          attributes: state.attributes.map(attr =>
             String(attr.id) === activeTypeIdForNewValue
               ? { ...attr, values: [...(attr.values || []), newValObj] }
               : attr
@@ -369,13 +479,26 @@ export function useProductVariants() {
         }));
         toast.success('تم إضافة خيار الصفة بنجاح وفق توثيق زد');
       } else {
-        // في سلة: إضافة قيمة لصفة قائمة عبر POST /products/options/values/{id}
-        const payload = {
+        // في سلة: إضافة قيمة لصفة قائمة عبر POST /products/options/values/{option_id}
+        const payload: Record<string, any> = {
           name: valName,
-          display_value: color || valName
         };
+        if (color) {
+          payload.color = color;
+          payload.display_value = color;
+        } else {
+          payload.display_value = valName;
+        }
 
-        const res = await productEditService.createProductOptionValue(activeTypeIdForNewValue, payload);
+        const currentType = variantTypes.find(t => t.id === activeTypeIdForNewValue);
+        const existingValues = currentType?.values || [];
+
+        const res = await productEditService.createProductOptionValue(
+          unifiedProduct?.id || '',
+          activeTypeIdForNewValue,
+          payload,
+          existingValues
+        );
         const createdValue = res?.data || res;
         const valId = String(createdValue?.id || `val-${Date.now()}`);
 
@@ -384,19 +507,28 @@ export function useProductVariants() {
           label: valName
         };
 
-        setVariantTypes(prev => prev.map(t => 
-          t.id === activeTypeIdForNewValue 
+        setVariantTypes(prev => prev.map(t =>
+          t.id === activeTypeIdForNewValue
             ? { ...t, values: [...t.values, newValMapped] }
             : t
         ));
 
         useProductEditStore.setState(state => ({
-          attributes: state.attributes.map(attr => 
+          attributes: state.attributes.map(attr =>
             String(attr.id) === activeTypeIdForNewValue
               ? { ...attr, values: [...(attr.values || []), createdValue] }
               : attr
           )
         }));
+        // إصلاح #10 (مشكلة #12): تحديد القيمة الجديدة تلقائياً في الصف المرتبط لتحسين تجربة المستخدم
+        setVariantsRows(prev => prev.map(row => {
+          if (row.typeId === activeTypeIdForNewValue) {
+            return { ...row, selectedValues: [...row.selectedValues, valId] };
+          }
+          return row;
+        }));
+        setShowConfirmButton(true); // إظهار زر "تأكيد وإنشاء المتغيرات"
+
         toast.success('تم إضافة القيمة بنجاح في سلة');
       }
 
@@ -455,16 +587,18 @@ export function useProductVariants() {
       const displayName = comb.map((c: any) => c.valueLabel).join(' / ');
       const sku = `${productSku}-${index + 1}`;
 
-      const matchedOriginal = originalVariants.find((ov: any) => 
-        Array.isArray(ov.attributes) &&
-        ov.attributes.length === comb.length &&
-        comb.every((c: any) => 
-          ov.attributes.some((oa: any) => 
-            String(oa.id || oa.attribute_id) === String(c.attributeId) && 
-            String(oa.valueId || oa.value) === String(c.valueId)
-          )
-        )
-      );
+      const matchedOriginal = originalVariants.find((ov: any) => {
+        if (!Array.isArray(ov.attributes)) return false;
+        // Partial matching: المتغير الأصلي يُطابَق إذا تطابقت جميع قيم التوليفة الجديدة
+        // حتى لو كان الأصلي يحتوي على خيارات أقل (عند إضافة خيار جديد)
+        return comb.every((c: any) =>
+          ov.attributes.some((oa: any) => {
+            const attrIdMatch = String(oa.id || oa.attribute_id || '') === String(c.attributeId);
+            const valIdMatch = String(oa.valueId || oa.value_id || '') === String(c.valueId);
+            return attrIdMatch && valIdMatch;
+          })
+        );
+      });
 
       if (matchedOriginal) return matchedOriginal;
 
@@ -476,7 +610,7 @@ export function useProductVariants() {
       }));
 
       return {
-        id: `row-${Date.now()}-${index}`,
+        id: `row-${genUid()}-${index}`,
         sku,
         barcode: '',
         price: basePrice,
@@ -544,8 +678,17 @@ export function useProductVariants() {
     handleCreateNewOption,
     handleCreateNewValue,
     handleGenerateVariants,
+    pendingDeleteOptionId,
+    setPendingDeleteOptionId,
+    handleConfirmDeleteOption,
+    pendingDeleteVariantIdx,
+    setPendingDeleteVariantIdx,
+    handleConfirmDeleteVariant,
+    showConfirmButton,
+    pendingTypeChange,
+    setPendingTypeChange,
+    handleConfirmTypeChange,
     watch,
-    setValue,
-    showConfirmButton
+    setValue
   };
 }

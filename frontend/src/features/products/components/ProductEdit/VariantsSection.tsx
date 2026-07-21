@@ -11,6 +11,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../../../components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "../../../../components/ui/dialog";
 import { useProductEditStore } from "../../store/productEditStore";
 import { useProductVariants } from "../../hooks/useProductVariants";
 import { VariantsTable } from "./components/VariantsTable";
@@ -57,10 +65,26 @@ export function VariantsSection() {
     handleCreateNewOption,
     handleCreateNewValue,
     handleGenerateVariants,
-    showConfirmButton
+    pendingDeleteOptionId,
+    setPendingDeleteOptionId,
+    handleConfirmDeleteOption,
+    pendingDeleteVariantIdx,
+    setPendingDeleteVariantIdx,
+    handleConfirmDeleteVariant,
+    pendingTypeChange,
+    setPendingTypeChange,
+    handleConfirmTypeChange,
+    showConfirmButton,
+    watch
   } = useProductVariants();
 
   const hasActiveSelections = variantsRows.length > 0 && variantsRows.every(row => row.typeId && row.selectedValues.length > 0);
+
+  // إصلاح #11: حساب عدد التوليفات المتوقعة لعرضه في زر "تأكيد"
+  const expectedCombinations = variantsRows
+    .filter(r => r.typeId && r.selectedValues.length > 0)
+    .reduce((count, row) => count * row.selectedValues.length, 1);
+
 
   if (!unifiedProduct) return null;
 
@@ -130,12 +154,20 @@ export function VariantsSection() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild disabled={!vRow.typeId}>
                         <button type="button" className="flex h-11 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none hover:bg-muted/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                          <span className="truncate">
-                            {vRow.selectedValues.length > 0 && currentType
-                              ? vRow.selectedValues.map((vId: string) => currentType.values.find(v => v.id === vId)?.label ?? vId).join('، ')
-                              : vRow.typeId ? 'اختر القيم...' : 'يجب اختيار نوع الخيار أولاً'}
-                          </span>
-                          <ChevronDown className="h-4 w-4 opacity-50" />
+                          {/* إصلاح #12 (#27): badge يُظهر عدد القيم المُختارة في القائمة المغلقة */}
+                          <div className="flex items-center gap-2 truncate">
+                            {vRow.selectedValues.length > 0 && (
+                              <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">
+                                {vRow.selectedValues.length}
+                              </span>
+                            )}
+                            <span className="truncate">
+                              {vRow.selectedValues.length > 0 && currentType
+                                ? vRow.selectedValues.map((vId: string) => currentType.values.find(v => v.id === vId)?.label ?? vId).join('، ')
+                                : vRow.typeId ? 'اختر القيم...' : 'يجب اختيار نوع الخيار أولاً'}
+                            </span>
+                          </div>
+                          <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-[200px] rtl max-h-56 overflow-y-auto" align="center">
@@ -210,14 +242,16 @@ export function VariantsSection() {
                 type="button"
                 variant={hasActiveSelections ? "default" : "secondary"}
                 disabled={!hasActiveSelections}
-                className={`w-full max-w-md py-6 text-base font-semibold rounded-xl gap-2 transition-all shadow-md ${
-                  hasActiveSelections
+                className={`w-full max-w-md py-6 text-base font-semibold rounded-xl gap-2 transition-all shadow-md ${hasActiveSelections
                     ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/20"
                     : "opacity-60 cursor-not-allowed bg-muted text-muted-foreground border border-border"
-                }`}
+                  }`}
                 onClick={handleGenerateVariants}
               >
-                تأكيد وإنشاء المتغيرات
+                {/* إصلاح #11 (#25): إظهار عداد التوليفات المتوقعة في زر التأكيد */}
+                {hasActiveSelections
+                  ? `تأكيد وإنشاء ${expectedCombinations} ${expectedCombinations > 10 ? 'متغير' : 'متغيرات'}`
+                  : 'تأكيد وإنشاء المتغيرات (يرجى اختيار القيم أولاً)'}
               </Button>
             </div>
           )}
@@ -266,6 +300,74 @@ export function VariantsSection() {
         activeTypeId={activeTypeIdForNewValue}
         variantTypes={variantTypes}
       />
+
+      {/* إصلاح #13 (#28): Dialog مخصص لتأكيد حذف الخيار نهائياً من سلة بدلاً من window.confirm البدائي */}
+      <Dialog open={!!pendingDeleteOptionId} onOpenChange={(open) => !open && setPendingDeleteOptionId(null)}>
+        <DialogContent className="max-w-md rtl">
+          <DialogHeader>
+            <DialogTitle className="text-destructive font-bold text-lg">تأكيد حذف الخيار</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2">
+              هل أنت متأكد من رغبتك في حذف هذا الخيار وكافة قيمه ومتغيراته نهائياً من المتجر؟ لا يمكن التراجع عن هذا الإجراء.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" type="button" onClick={() => setPendingDeleteOptionId(null)}>
+              إلغاء
+            </Button>
+            <Button variant="destructive" type="button" onClick={handleConfirmDeleteOption}>
+              حذف نهائياً
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog تأكيد حذف المتغير */}
+      <Dialog open={pendingDeleteVariantIdx !== null} onOpenChange={(open) => !open && setPendingDeleteVariantIdx(null)}>
+        <DialogContent className="max-w-md rtl">
+          <DialogHeader>
+            <DialogTitle className="text-destructive font-bold text-lg">تأكيد حذف المتغير</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2">
+              {pendingDeleteVariantIdx !== null && (
+                <>
+                  هل أنت متأكد من حذف المتغير{' '}
+                  <strong className="text-foreground">
+                    {watch(`variants.${pendingDeleteVariantIdx}.displayName`) || `#${pendingDeleteVariantIdx + 1}`}
+                  </strong>
+                  {' '}نهائياً من المتجر؟ لا يمكن التراجع عن هذا الإجراء.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" type="button" onClick={() => setPendingDeleteVariantIdx(null)}>
+              إلغاء
+            </Button>
+            <Button variant="destructive" type="button" onClick={handleConfirmDeleteVariant}>
+              حذف نهائياً
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog تأكيد تغيير نوع الخيار — يُحذِّر من مسح بيانات المتغيرات */}
+      <Dialog open={!!pendingTypeChange} onOpenChange={(open) => !open && setPendingTypeChange(null)}>
+        <DialogContent className="max-w-md rtl">
+          <DialogHeader>
+            <DialogTitle className="text-amber-600 font-bold text-lg">تحذير: سيتم مسح المتغيرات</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-2">
+              تغيير نوع الخيار سيؤدي إلى <strong className="text-foreground">مسح جميع المتغيرات الحالية</strong> وبياناتها (الأسعار، الكميات، SKUs). هل تريد المتابعة؟
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-end pt-4">
+            <Button variant="outline" type="button" onClick={() => setPendingTypeChange(null)}>
+              إلغاء
+            </Button>
+            <Button variant="destructive" type="button" onClick={handleConfirmTypeChange}>
+              نعم، تغيير وحذف المتغيرات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AccordionItem>
   );
 }

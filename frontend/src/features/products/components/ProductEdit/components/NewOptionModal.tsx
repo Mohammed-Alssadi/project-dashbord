@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ChevronDown } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 
 interface NewOptionModalProps {
   isOpen: boolean;
@@ -36,8 +36,6 @@ export function NewOptionModal({
   newOptionType,
   setNewOptionType,
   newOptionValues,
-  collapsedValueIds,
-  toggleCollapseValue,
   handleAddOptionValue,
   handleRemoveOptionValue,
   handleOptionValueLabelChange,
@@ -46,123 +44,124 @@ export function NewOptionModal({
 }: NewOptionModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="rtl max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl">
-        <DialogHeader className="border-b pb-3">
-          <DialogTitle className="text-xl font-bold text-right">إنشاء خيار</DialogTitle>
+      <DialogContent className="rtl p-6 rounded-xl sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-xl font-bold text-right text-primary">إنشاء خيار منتج جديد</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
-            <div className="space-y-1 text-right">
-              <h4 className="text-sm font-bold text-foreground">اسم خيار المنتج</h4>
-              <Label className="text-xs text-muted-foreground">اسم خيار المنتج (العربية)</Label>
+          {/* قسم تعريف الخيار: الاسم والنوع أفقي متساويين كلياً */}
+          <div className="p-5 border rounded-xl bg-muted/5 border-border/80 grid grid-cols-1 md:grid-cols-2 gap-5 items-end">
+            <div className="space-y-1.5 text-right w-full">
+              <Label className="text-sm font-bold text-foreground">اسم خيار المنتج</Label>
               <Input
-                placeholder="الاسم"
+                placeholder="أدخل اسم الخيار (مثال: اللون، المقاس، المادة)"
                 value={newOptionName}
                 onChange={e => setNewOptionName(e.target.value)}
-                className="mt-1"
+                className="h-11 rounded-xl text-right placeholder:text-muted-foreground/60 w-full"
               />
             </div>
 
-            <div className="flex items-center justify-between gap-4 pt-2">
-              <Select value={newOptionType} onValueChange={setNewOptionType}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="اختر النوع" />
+            <div className="space-y-1.5 text-right w-full">
+              <Label className="text-sm font-bold text-foreground">نوع الخيار</Label>
+              <Select value={newOptionType || undefined} onValueChange={setNewOptionType}>
+                <SelectTrigger className="h-11 rounded-xl w-full text-right cursor-pointer">
+                  <SelectValue placeholder="اختر نوع الخيار من القائمة" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rtl">
                   <SelectItem value="color">اللون</SelectItem>
                   <SelectItem value="size">المقاس</SelectItem>
                   <SelectItem value="text">حقل نصي</SelectItem>
                 </SelectContent>
               </Select>
-              <Label className="shrink-0 text-sm font-semibold">نوع الخيار</Label>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-base font-bold text-foreground text-right">القيم الخاصة بخيارات المنتج</h4>
-            <div className="space-y-3">
-              {newOptionValues.map((val, i) => {
-                const isCollapsed = collapsedValueIds.includes(val.id);
-                return (
-                  <div key={val.id} className="border rounded-xl p-4 bg-card shadow-sm space-y-3 transition-all">
-                    <div
-                      className="flex items-center justify-between border-b pb-2 cursor-pointer select-none"
-                      onClick={() => toggleCollapseValue(val.id)}
-                    >
-                      <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} />
-                      <span className="text-sm font-semibold">قيمة الخيار {i + 1} {val.label ? `(${val.label})` : ''}</span>
+          {/* قسم القيم: يظهر بشكل ديناميكي تفاعلي بعد اختيار النوع */}
+          {!newOptionType ? (
+            <div className="border border-dashed border-border/80 rounded-xl p-8 text-center text-muted-foreground text-sm bg-muted/5">
+              يرجى اختيار "نوع الخيار" أولاً لتتمكن من إضافة وتعبئة قيم الخيار للمنتج.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl border-primary/30 text-primary hover:bg-primary/5 text-xs font-semibold px-4 h-9 gap-1"
+                  onClick={handleAddOptionValue}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  أضف قيمة جديدة
+                </Button>
+                <h4 className="text-base font-bold text-foreground text-right">القيم المتاحة لهذا الخيار</h4>
+              </div>
+
+              <div className="space-y-3">
+                {newOptionValues.map((val, i) => (
+                  <div key={val.id} className="flex flex-row items-center gap-3 border rounded-2xl p-3 bg-card hover:shadow-sm border-border/80 transition-all rtl">
+                    <div className="text-sm font-bold text-muted-foreground/80 shrink-0 min-w-[70px] text-right">
+                      القيمة {i + 1}
                     </div>
 
-                    {!isCollapsed && (
-                      <>
-                        <div className="flex items-end gap-3 text-right">
-                          {newOptionType === 'color' && (
-                            <div className="relative shrink-0 flex flex-col items-center">
-                              <Label className="text-xs text-muted-foreground block mb-1.5">اللون</Label>
-                              <input
-                                type="color"
-                                value={val.color || '#000000'}
-                                onChange={(e) => handleOptionValueColorChange(val.id, e.target.value)}
-                                className="w-10 h-10 rounded-full border shadow-sm cursor-pointer p-0 overflow-hidden bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-full"
-                              />
-                            </div>
-                          )}
+                    <div className="flex-1">
+                      <Input
+                        placeholder={
+                          newOptionType === 'color'
+                            ? "مثال: أحمر، أزرق، أسود"
+                            : newOptionType === 'size'
+                            ? "مثال: S، M، XL"
+                            : "أدخل القيمة المطلوبة"
+                        }
+                        value={val.label}
+                        onChange={e => handleOptionValueLabelChange(val.id, e.target.value)}
+                        className="h-11 rounded-xl text-right placeholder:text-muted-foreground/50"
+                      />
+                    </div>
 
-                          <div className="flex-1 space-y-1">
-                            <Label className="text-xs text-muted-foreground">قيمة خيار المنتج (العربية)</Label>
-                            <Input
-                              placeholder="قيمة خيار المنتج"
-                              value={val.label}
-                              onChange={e => handleOptionValueLabelChange(val.id, e.target.value)}
-                              className="h-10"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-start">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="text-xs text-muted-foreground border-border hover:bg-destructive/10 hover:text-destructive h-8 px-4"
-                            onClick={() => handleRemoveOptionValue(val.id)}
-                            disabled={newOptionValues.length === 1}
-                          >
-                            حذف
-                          </Button>
-                        </div>
-                      </>
+                    {newOptionType === 'color' && (
+                      <div className="flex items-center gap-2.5 border rounded-xl px-3 h-11 bg-muted/10 border-border/60 shrink-0">
+                        <span className="text-[11px] text-muted-foreground/90 font-medium">لون العنصر</span>
+                        <input
+                          type="color"
+                          value={val.color || '#000000'}
+                          onChange={(e) => handleOptionValueColorChange(val.id, e.target.value)}
+                          className="w-7 h-7 rounded-full border shadow-sm cursor-pointer p-0 overflow-hidden bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-full shrink-0"
+                        />
+                      </div>
                     )}
-                  </div>
-                );
-              })}
-            </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-dashed rounded-full h-11 text-sm bg-background text-muted-foreground gap-1.5 justify-center mt-2"
-              onClick={handleAddOptionValue}
-            >
-              أضف قيمة جديدة لهذا الخيار
-            </Button>
-          </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-11 w-11 rounded-xl shrink-0 cursor-pointer transition-colors"
+                      onClick={() => handleRemoveOptionValue(val.id)}
+                      disabled={newOptionValues.length === 1}
+                    >
+                      <Trash2 className="h-4.5 w-4.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <DialogFooter className="flex flex-row gap-2 border-t pt-4">
+        <DialogFooter className="flex flex-row gap-3 border-t pt-5">
           <Button
             type="button"
-            className="flex-1 h-11 bg-primary text-primary-foreground font-semibold rounded-full"
+            className="flex-1 h-12 bg-primary text-primary-foreground font-bold rounded-xl text-sm transition-all hover:bg-primary/95"
             onClick={handleCreateNewOption}
-            disabled={!newOptionName.trim()}
+            disabled={!newOptionName.trim() || !newOptionType || newOptionValues.some(v => !v.label.trim())}
           >
-            إنشاء
+            إنشاء الخيار والقيم
           </Button>
           <Button
             type="button"
             variant="outline"
-            className="flex-1 h-11 border-border font-semibold rounded-full"
+            className="flex-1 h-12 border-border font-semibold rounded-xl text-sm transition-all hover:bg-muted/10"
             onClick={() => onOpenChange(false)}
           >
             إلغاء

@@ -13,9 +13,19 @@ import {
   DropdownMenuTrigger,
 } from "../../../../components/ui/dropdown-menu";
 import { useProductBasicInfo } from "../../hooks/useProductBasicInfo";
+import { useProductEditStore } from "../../store/productEditStore";
 
 export function BasicInfoSection() {
   const { register, formState: { errors } } = useFormContext();
+  // إصلاح #14 (#29): وحدة الوزن ديناميكية من API سلة
+  const { unifiedProduct } = useProductEditStore();
+  const weightTypeLabel = (() => {
+    const wt = (unifiedProduct as any)?.weightType ?? 'kg';
+    if (wt === 'g' || wt === 'gram') return 'جم';
+    if (wt === 'lb' || wt === 'lbs') return 'باوند';
+    if (wt === 'oz') return 'أوقية';
+    return 'كجم'; // افتراضي
+  })();
   const {
     safeImages,
     selectedCategories,
@@ -47,12 +57,13 @@ export function BasicInfoSection() {
             <Label>صور المنتج</Label>
             <div className="flex flex-wrap gap-2.5">
               
-              {/* مدخل ملف مخفي */}
+              {/* مدخل ملف مخفي — يدعم تحديد أكثر من صورة في وقت واحد (Issue #60) */}
               <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImageUpload}
                 accept="image/*"
+                multiple
                 className="hidden"
               />
 
@@ -228,7 +239,7 @@ export function BasicInfoSection() {
                   className={errors.weight ? "pl-14 border-destructive focus-visible:ring-destructive" : "pl-14"}
                   placeholder="0"
                 />
-                <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-semibold">كجم</span>
+                <span className="absolute left-3 top-2.5 text-sm text-muted-foreground font-semibold">{weightTypeLabel}</span>
               </div>
               <FormFieldError message={errors.weight?.message as string} />
             </div>

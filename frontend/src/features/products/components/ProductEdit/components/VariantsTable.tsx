@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getColorHex } from "../../../utils/functions/getColorHex";
+import { useProductEditStore } from '../../../store/productEditStore';
 
 interface VariantsTableProps {
   variantFields: any[];
@@ -40,10 +41,17 @@ export function VariantsTable({
   removeVariant,
   platform,
 }: VariantsTableProps) {
-  const { register, watch, formState: { errors } } = useFormContext();
+  const { register, watch, setValue, formState: { errors } } = useFormContext();
+  const { } = useProductEditStore();
 
   // تصفية الخيارات الديناميكية للتأكد من اختيار نوع الخيار واختيار قيمة واحدة على الأقل
   const activeOptionRows = variantsRows.filter(row => row.typeId && row.selectedValues.length > 0);
+
+  // حساب إجمالي الكمية التراكمية لكافة المتغيرات
+  const allVariants = watch('variants') || [];
+  const totalVariantsCount = allVariants.length;
+  const totalItemsQuantity = allVariants.reduce((sum: number, v: any) => sum + (v.isUnlimited ? 0 : (Number(v.quantity) || 0)), 0);
+  const hasUnlimitedVariant = allVariants.some((v: any) => v.isUnlimited);
 
   return (
     <div className="mt-8 pt-6 border-t border-border w-full max-w-full overflow-hidden">
@@ -76,9 +84,12 @@ export function VariantsTable({
                 <th className="p-4 min-w-[100px]">السعر (ر.س)</th>
                 <th className="p-4 min-w-[100px]">السعر المخفض</th>
                 <th className="p-4 min-w-[100px]">سعر التكلفة</th>
-                <th className="p-4 min-w-[90px]">الكمية</th>
+                <th className="p-4 min-w-[110px]">الكمية</th>
+
                 <th className="p-4 min-w-[90px]">الوزن (كج)</th>
-                <th className="p-4 w-12 text-center">إجراء</th>
+                {platform !== 'salla' && (
+                  <th className="p-4 w-12 text-center">إجراء</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -105,13 +116,59 @@ export function VariantsTable({
                     ) : (
                       (() => {
                         const attributes = watch(`variants.${idx}.attributes`) || [];
-                        return activeOptionRows.map(row => {
-                          const attr = attributes.find((a: any) => String(a.id || a.attribute_id) === String(row.typeId));
-                          const valueText = attr?.value || '';
-
+                        return activeOptionRows.map((row, optionRowIdx) => {
                           const type = variantTypes.find(t => t.id === row.typeId);
-                          const isColorOption = type?.label?.includes("اللون") || type?.label?.toLowerCase()?.includes("color");
-                          const matchedVal = type?.values?.find((v: any) => String(v.id) === String(attr?.valueId));
+
+                          // 1. البحث بمطابقة ID الخاصية المباشر
+                          let attr = attributes.find((a: any) => {
+                            const attrId = String(a.id || a.attribute_id || '');
+                            return attrId === String(row.typeId || '');
+                          });
+
+                          // 2. Fallback: البحث بمطابقة اسم الخيار (مثل "المقاس" أو "اللون")
+                          if (!attr && type?.label) {
+                            attr = attributes.find((a: any) => {
+                              const aName = typeof a.name === 'object' ? (a.name?.ar || a.name?.en || '') : String(a.name || '');
+                              return aName.trim().toLowerCase() === type.label.trim().toLowerCase();
+                            });
+                          }
+
+                          // 3. Fallback: القراءة بالترتيب (index) في مصفوفة attributes للمتغير
+                          if (!attr && attributes[optionRowIdx]) {
+                            attr = attributes[optionRowIdx];
+                          }
+
+                          const rawVal = attr?.value;
+                          let valueText = typeof rawVal === 'string'
+                            ? rawVal
+                            : rawVal && typeof rawVal === 'object'
+                              ? (rawVal.ar || rawVal.en || rawVal.name || rawVal.display_value || String(rawVal))
+                              : '';
+
+                          // 4. Fallback: القراءة من displayName للمتغير (شريطة ألا يكون اسماً تجميعياً مثل "متغير 1234")
+                          if ((!valueText || valueText.startsWith('متغير ')) && typeof name === 'string' && name.trim() && !name.startsWith('متغير ')) {
+                            const parts = name.split(' / ');
+                            if (parts[optionRowIdx]) {
+                              valueText = parts[optionRowIdx].trim();
+                            }
+                          }
+
+                          // 5. Fallback: القراءة المباشرة من type.values إذا توفر valueId أو مطابقة القيمة
+                          const isColorOption = type?.displayType === 'color';
+                          const matchedVal = type?.values?.find((v: any) =>
+                            String(v.id) === String(attr?.valueId) ||
+                            (valueText && v.label.trim().toLowerCase() === valueText.trim().toLowerCase())
+                          );
+
+                          if ((!valueText || valueText.startsWith('متغير ')) && matchedVal?.label) {
+                            valueText = matchedVal.label;
+                          }
+
+                          // تنظيف النهائي: إذا كانت القيمة لا تزال "متغير 1234" نمنع عرضها كاسم خاصية
+                          if (valueText.startsWith('متغير ')) {
+                            valueText = '';
+                          }
+
                           const colorHex = matchedVal?.hex || (isColorOption ? getColorHex(valueText) : null);
 
                           return (
@@ -124,7 +181,7 @@ export function VariantsTable({
                                     title={valueText}
                                   />
                                 )}
-                                <span>{valueText}</span>
+                                <span>{valueText || '—'}</span>
                               </div>
                             </td>
                           );
@@ -198,22 +255,84 @@ export function VariantsTable({
                       {costPriceErr && <span className="text-[10px] text-destructive block mt-1 font-semibold">{costPriceErr.message}</span>}
                     </td>
                     <td className="p-4 text-center">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className={`text-sm font-semibold px-2.5 py-1 rounded-md ${isUnlimited ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400' : 'bg-muted text-foreground'}`}>
-                          {qtyVal}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 text-primary border-primary/25 hover:bg-primary/5 transition-all"
-                          onClick={() => openStockModal(idx)}
-                          title="تفاصيل المخزون للفروع والمستودعات"
-                        >
-                          <Warehouse className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {platform === 'salla' ? (
+                        /* لسلة: إدخال مباشر للكمية + خيار غير محدود بجانبه */
+                        <div className="flex items-center gap-2 justify-center min-w-[170px]">
+                          <Input
+                            type="number"
+                            step="any"
+                            disabled={isUnlimited}
+                            {...register(`variants.${idx}.quantity`, {
+                              valueAsNumber: true,
+                              onChange: (e) => {
+                                // تحديث كمية الفرع الأول ليتزامن مع المدخل المباشر (إذا كان فرع واحد)
+                                const varStocks = watch(`variants.${idx}.stocks`) || [];
+                                if (varStocks.length === 1) {
+                                  const newVal = Math.max(0, Number(e.target.value) || 0);
+                                  setValue(`variants.${idx}.stocks.0.quantity`, newVal, { shouldDirty: true });
+                                }
+                              }
+                            })}
+                            className={`h-9 text-center w-20 shrink-0 ${rowErrors?.quantity ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                            placeholder="0"
+                          />
+                          <label className="flex items-center gap-1 cursor-pointer select-none text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={isUnlimited}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setValue(`variants.${idx}.isUnlimited`, checked, { shouldDirty: true });
+                                // مزامنة جميع فروع الصنف مع حالة unlimited
+                                const varStocks = watch(`variants.${idx}.stocks`) || [];
+                                const updatedStocks = varStocks.map((st: any) => ({
+                                  ...st,
+                                  isUnlimited: checked,
+                                  quantity: checked ? 0 : st.quantity
+                                }));
+                                setValue(`variants.${idx}.stocks`, updatedStocks, { shouldDirty: true });
+                                if (checked) {
+                                  setValue(`variants.${idx}.quantity`, 0, { shouldDirty: true });
+                                }
+                              }}
+                              className="h-3.5 w-3.5 rounded border-gray-300 text-primary"
+                            />
+                            <span>غير محدود</span>
+                          </label>
+                          {/* زر الفروع — يظهر للمتاجر ذات فروع متعددة */}
+                          {(watch(`variants.${idx}.stocks`) || []).length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-9 w-9 text-primary border-primary/25 hover:bg-primary/5 transition-all shrink-0"
+                              onClick={() => openStockModal(idx)}
+                              title="تعديل كميات الفروع"
+                            >
+                              <Warehouse className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* لزد: عرض الرمز والأيقونة المنبثقة للمستودعات */
+                        <div className="flex items-center justify-end gap-2">
+                          <span className={`text-sm font-semibold px-2.5 py-1 rounded-md ${isUnlimited ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400' : 'bg-muted text-foreground'}`}>
+                            {qtyVal}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 text-primary border-primary/25 hover:bg-primary/5 transition-all"
+                            onClick={() => openStockModal(idx)}
+                            title="تفاصيل المخزون للفروع والمستودعات"
+                          >
+                            <Warehouse className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </td>
+
                     <td className="p-4">
                       <Input
                         type="number"
@@ -224,18 +343,20 @@ export function VariantsTable({
                       />
                       {weightErr && <span className="text-[10px] text-destructive block mt-1 font-semibold">{weightErr.message}</span>}
                     </td>
-                    <td className="p-4 text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeVariant(idx)}
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer transition-colors"
-                        title="حذف المتغير"
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                      </Button>
-                    </td>
+                    {platform !== 'salla' && (
+                      <td className="p-4 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeVariant(idx)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer transition-colors"
+                          title="حذف المتغير"
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -243,6 +364,18 @@ export function VariantsTable({
           </table>
         </div>
       </div>
+
+      {/* شريط ملخص إحصائيات المتغيرات */}
+      {totalVariantsCount > 0 && (
+        <div className="mt-3 flex items-center justify-between p-3.5 rounded-xl bg-muted/20 border border-border/60 text-xs text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <span>عدد المتغيرات الكلي: <strong className="text-foreground font-bold">{totalVariantsCount}</strong></span>
+            <span className="h-3.5 w-px bg-border inline-block" />
+            <span>إجمالي الكمية التراكمية: <strong className="text-primary font-bold text-sm">{totalItemsQuantity}</strong> قطعة {hasUnlimitedVariant && <span className="text-blue-600 font-semibold">(تتضمن عناصر غير محدودة)</span>}</span>
+          </div>
+          <span className="text-[11px] opacity-80">تُحسب الكمية التراكمية تلقائياً في سلة من جمع أصناف المنتج</span>
+        </div>
+      )}
 
       {/* ── Dialog: إدارة المخزون للفروع والمستودعات ── */}
       <Dialog open={activeStockIdx !== null} onOpenChange={(open) => { if (!open) closeStockModal(); }}>
@@ -273,11 +406,11 @@ export function VariantsTable({
                         id={`unlimited-${st.locationId}`}
                         checked={st.isUnlimited}
                         onChange={(e) => {
-                          const updated = [...tempStocks];
+                          const updated = tempStocks.map((s: any) => ({ ...s }));
                           updated[sIdx].isUnlimited = e.target.checked;
+                          // عند تفعيل unlimited: صفّر الكمية (ليس 999999)
+                          // عند الإلغاء: احتفظ بالكمية الحالية (0 إذا كانت صفراً)
                           if (e.target.checked) {
-                            updated[sIdx].quantity = 999999;
-                          } else {
                             updated[sIdx].quantity = 0;
                           }
                           setTempStocks(updated);
@@ -292,7 +425,8 @@ export function VariantsTable({
                       disabled={st.isUnlimited}
                       value={st.isUnlimited ? '' : st.quantity}
                       onChange={(e) => {
-                        const updated = [...tempStocks];
+                        // إصلاح #18: Deep copy للحفاظ على سلامة بيانات الإلغاء
+                        const updated = tempStocks.map(st => ({ ...st }));
                         updated[sIdx].quantity = Number(e.target.value);
                         setTempStocks(updated);
                       }}

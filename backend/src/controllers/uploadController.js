@@ -128,8 +128,9 @@ export const uploadSallaProductImage = async (req, res) => {
       knownLength: req.file.size
     });
 
+    // إصلاح #17 (#61): سلة تتوقع الحقل alt_text وليس alt حسب التوثيق الرسمي
     if (req.body?.alt_text) {
-      form.append('alt', req.body.alt_text);
+      form.append('alt_text', req.body.alt_text);
     }
 
     const sallaResponse = await axios.post(

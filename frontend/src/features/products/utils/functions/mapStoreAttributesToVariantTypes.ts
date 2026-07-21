@@ -7,6 +7,8 @@ export interface AttributeValue {
 export interface VariantType {
   id: string;
   label: string;
+  // إصلاح #11: إضافة displayType من سلة — يُستخدم لكشف نوع اللون بدقة
+  displayType?: 'color' | 'text' | 'image' | string;
   values: AttributeValue[];
 }
 
@@ -27,15 +29,18 @@ export function mapStoreAttributesToVariantTypes(storeAttributes: any[]): Varian
     label: typeof attr.name === 'object'
       ? (attr.name?.ar || attr.name?.en || String(attr.id))
       : String(attr.name ?? attr.id ?? ''),
+    // إصلاح #11: استخراج displayType من سلة (display_type) أو زد (type)
+    displayType: attr.display_type ?? attr.type ?? 'text',
     values: Array.isArray(attr.values)
       ? attr.values.map((v: any): AttributeValue => ({
           id: String(v.id ?? ''),
           label: typeof v.name === 'object'
             ? (v.name?.ar || v.name?.en || String(v.id))
             : String(v.name ?? v.display_value ?? v.value ?? v.id ?? ''),
-          hex: typeof v.display_value === 'string' && v.display_value.startsWith('#')
-            ? v.display_value
-            : (typeof v.value === 'string' && v.value.startsWith('#') ? v.value : undefined)
+          // إصلاح #11: سلة تُخزِّن اللون في v.color — نقرأه أولاً ثم display_value
+          hex: v.color
+            || (typeof v.display_value === 'string' && v.display_value.startsWith('#') ? v.display_value : undefined)
+            || (typeof v.value === 'string' && v.value.startsWith('#') ? v.value : undefined)
         }))
       : Array.isArray(attr.presets)
         ? attr.presets.map((v: any): AttributeValue => ({
@@ -54,3 +59,4 @@ export function mapStoreAttributesToVariantTypes(storeAttributes: any[]): Varian
           : [],
   }));
 }
+
